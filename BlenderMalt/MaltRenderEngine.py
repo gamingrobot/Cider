@@ -388,13 +388,126 @@ class MaltRenderEngine(bpy.types.RenderEngine):
             DISPLAY_DRAW.draw(fbo, render_texture)
         else:
             import gpu
-            from gpu_extras.presets import draw_texture_2d
+            from gpu_extras.batch import batch_for_shader
             data_format = 'FLOAT' # GPUTexture only supports 'FLOAT' buffer types
             texture_format = 'RGBA32F'
-            #TODO do we need the sRGBConversion shader?
+            if self.bridge.viewport_bit_depth == 8:
+                texture_format = 'RGBA8'
+            elif self.bridge.viewport_bit_depth == 16:
+                texture_format = 'RGBA16F'
+
             buffer = gpu.types.Buffer(data_format, len(pixels), pixels.buffer())
             render_texture = gpu.types.GPUTexture(viewport_resolution, format=texture_format, data=buffer)
-            draw_texture_2d(render_texture, (0, 0), render_texture.width, render_texture.height)
+
+            vert_out = gpu.types.GPUStageInterfaceInfo("malt_interface")
+            vert_out.smooth('VEC2', "texCoord") # TODO: should this be smooth or no_perspective?
+            
+            shader_info = gpu.types.GPUShaderCreateInfo()
+            shader_info.vertex_in(0, 'VEC3', "pos")
+            shader_info.vertex_out(vert_out)
+            shader_info.sampler(0, 'FLOAT_2D', "image")
+            shader_info.push_constant('INT', "bitDepth")
+            shader_info.fragment_out(0, 'VEC4', "fragColor")
+
+            vertex_shader = '''
+                void main()
+                {
+                    gl_Position = vec4(pos.xyz, 1.0f);
+                    texCoord = pos.xy * 0.5 + 0.5;
+                }
+                '''
+
+            # fragment_shader = '''
+            #     vec3 srgb_to_linear(vec3 srgb)
+            #     {
+            #         vec3 low = srgb / 12.92;
+            #         vec3 high = pow((srgb + 0.055)/1.055, vec3(2.4));
+            #         return mix(low, high, greaterThan(srgb, vec3(0.04045)));
+            #     }
+            #     void main()
+            #     {
+            #         if (bitDepth == 8)
+            #         {
+            #             vec4 color = texture(image, texCoord);
+            #             color.rgb = srgb_to_linear(color.rgb);
+            #             fragColor = color;
+            #         }
+            #         else
+            #         {
+            #             vec4 color = texture(image, texCoord);
+            #             fragColor = color;
+            #         }
+            #     }
+            #     '''
+
+
+            fragment_shader = '''
+                vec3 srgb_to_linear(vec3 srgb)
+                {
+                    vec3 low = srgb / 12.92;
+                    vec3 high = pow((srgb + 0.055)/1.055, vec3(2.4));
+                    return mix(low, high, greaterThan(srgb, vec3(0.04045)));
+                }
+                void main()
+                {
+                    if (bitDepth == 8)
+                    {
+                        ivec2 textureSize = textureSize(image, 0);
+                        ivec2 texelCoords = ivec2(textureSize * clamp(texCoord, 0.0, 1.0));
+                        vec4 colorRaw = texelFetch(image, texelCoords, 0);
+                        ivec4 color = ivec4(floatBitsToInt(colorRaw.r), floatBitsToInt(colorRaw.g), floatBitsToInt(colorRaw.b), floatBitsToInt(colorRaw.a));
+                        //color.rgb = srgb_to_linear(color.rgb);
+                        fragColor = color;
+                    }
+                    else if (bitDepth == 16)
+                    {
+                        ivec2 textureSize = textureSize(image, 0);
+                        ivec2 texelCoords = ivec2(textureSize * clamp(texCoord, 0.0, 1.0));
+                        vec4 color = texelFetch(image, texelCoords, 0);
+                        fragColor = color;
+                    }
+                    else
+                    {
+                        //vec4 color = texture(image, texCoord);
+                        //fragColor = color;
+                        ivec2 textureSize = textureSize(image, 0);
+                        ivec2 texelCoords = ivec2(textureSize * clamp(texCoord, 0.0, 1.0));
+                        vec4 color = texelFetch(image, texelCoords, 0);
+                        fragColor = color;
+                    }
+                }
+                '''
+
+            shader_info.vertex_source(vertex_shader)
+            shader_info.fragment_source(fragment_shader)
+
+            shader = gpu.shader.create_from_info(shader_info)
+            del vert_out
+            del shader_info
+
+            positions=[
+                (1.0,  1.0, 1.0),
+                (1.0, -1.0, 1.0),
+                (-1.0, -1.0, 1.0),
+                (-1.0,  1.0, 1.0),
+            ]
+            indices=[
+                (0, 1, 3),
+                (1, 2, 3),
+            ]
+            
+            batch = batch_for_shader(
+                shader, 'TRIS',
+                {"pos": positions},
+                indices=indices
+            )
+
+
+            shader.uniform_sampler("image", render_texture)
+            shader.uniform_int("bitDepth", self.bridge.viewport_bit_depth)
+
+            batch.draw(shader)
+
 
 
 DISPLAY_DRAW = None
