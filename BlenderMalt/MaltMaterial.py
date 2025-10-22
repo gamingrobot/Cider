@@ -105,7 +105,8 @@ class MALT_PT_MaterialSettings(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine == 'MALT' and context.object is not None
+        return context.object is not None
+        #return context.scene.render.engine == 'MALT' and context.object is not None
 
     def draw(self, context):
         layout = self.layout

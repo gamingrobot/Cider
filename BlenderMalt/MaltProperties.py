@@ -807,7 +807,8 @@ class MALT_PT_Base(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.scene.render.engine == 'MALT' and cls.get_malt_property_owner(context):
+        #if context.scene.render.engine == 'MALT' and cls.get_malt_property_owner(context):
+        if cls.get_malt_property_owner(context):
             from BlenderMalt.MaltPipeline import get_bridge
             bridge = get_bridge()
             parameter_type = cls.get_parameter_type()

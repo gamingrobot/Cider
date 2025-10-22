@@ -130,8 +130,8 @@ def reset_meshes():
     MESHES = {}
 
 def draw_vertex_color_overrides(self, context):
-    if context.scene.render.engine != 'MALT':
-        return
+    # if context.scene.render.engine != 'MALT':
+    #     return
     mesh = context.object.data
     self.layout.use_property_split = True
     self.layout.label(text='Malt Vertex Colors')

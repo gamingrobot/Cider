@@ -8,6 +8,7 @@ _PIPELINE_PARAMETERS = None
 _TIMESTAMP = time.time()
 
 def is_malt_active():
+    return True
     if bpy.context.scene.render.engine == 'MALT':
         return True
     for scene in bpy.data.scenes:
@@ -29,7 +30,8 @@ def get_bridge(world=None, force_creation=False):
 
 def sync_pipeline_settings(default_world=None):
     for scene in bpy.data.scenes:
-        if scene.render.engine == 'MALT' and scene.world is None:
+        #if scene.render.engine == 'MALT' and scene.world is None:
+        if scene.world is None:
             scene.world = bpy.data.worlds.new(f'{scene.name} World')
             setup_parameters([scene.world])
     if default_world is None:
@@ -140,7 +142,8 @@ class OT_MaltReloadPipeline(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine == 'MALT' and context.scene.world is not None
+        #return context.scene.render.engine == 'MALT' and context.scene.world is not None
+        return context.scene.world is not None
 
     def execute(self, context):
         import Bridge
@@ -159,7 +162,8 @@ class MALT_PT_Pipeline(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine == 'MALT' and context.scene.world is not None
+        # return context.scene.render.engine == 'MALT' and context.scene.world is not None
+        return context.scene.world is not None
 
     def draw(self, context):
         context.scene.world.malt.draw_ui(self.layout)

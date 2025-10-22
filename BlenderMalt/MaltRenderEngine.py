@@ -560,7 +560,8 @@ class VIEW3D_PT_Malt_Stats(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine == 'MALT'
+        True
+        #return context.scene.render.engine == 'MALT'
 
     def draw(self, context):
         from . import MaltPipeline

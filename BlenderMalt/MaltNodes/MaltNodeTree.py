@@ -36,7 +36,8 @@ class MaltTree(bpy.types.NodeTree):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine == 'MALT'
+        True
+        # return context.scene.render.engine == 'MALT'
     
     def poll_material(self, material):
         return material.malt.shader_nodes is self
