@@ -11,35 +11,34 @@ _TIMESTAMP = time.time()
 def is_cider_active():
     return bpy.context.scene.cider.enabled
 
-def get_bridge(world=None, force_creation=False):
+def get_bridge(scene=None, force_creation=False):
     global _BRIDGE
     bridge = _BRIDGE
     if (bridge and bridge.lost_connection) or (bridge is None and force_creation):
         _BRIDGE = None
         if is_cider_active() == False:
             return None
-        if world is None:
-            world = bpy.context.scene.world
-        world.cider.update_pipeline(bpy.context)
+        if scene is None:
+            scene = bpy.context.scene
+        scene.cider.update_pipeline(bpy.context)
     return _BRIDGE
 
-def sync_pipeline_settings(default_world=None):
-    for scene in bpy.data.scenes:
-        if scene.cider.enabled and scene.world is None:
-            scene.world = bpy.data.worlds.new(f'{scene.name} World')
-            setup_parameters([scene.world])
-    if default_world is None:
-        default_world = bpy.data.worlds[0]
-    for world in bpy.data.worlds:
-        if world.cider.pipeline != default_world.cider.pipeline:
-            world.cider.pipeline = default_world.cider.pipeline
-        if world.cider.viewport_bit_depth != default_world.cider.viewport_bit_depth:
-            world.cider.viewport_bit_depth = default_world.cider.viewport_bit_depth
+# def sync_pipeline_settings(default_world=None):
+#     for scene in bpy.data.scenes:
+#         if scene.cider.enabled and scene.world is None:
+#             scene.world = bpy.data.worlds.new(f'{scene.name} World')
+#             setup_parameters([scene.world])
+#     if default_world is None:
+#         default_world = bpy.data.worlds[0]
+#     for world in bpy.data.worlds:
+#         if world.cider.pipeline != default_world.cider.pipeline:
+#             world.cider.pipeline = default_world.cider.pipeline
+#         if world.cider.viewport_bit_depth != default_world.cider.viewport_bit_depth:
+#             world.cider.viewport_bit_depth = default_world.cider.viewport_bit_depth
 
 _ON_PIPELINE_SETTINGS_UPDATE = False
 
 class CiderPipeline(bpy.types.PropertyGroup):
-
     def update_pipeline(self, context):
         global _TIMESTAMP
         _TIMESTAMP = time.time()
@@ -70,21 +69,20 @@ class CiderPipeline(bpy.types.PropertyGroup):
             return
         _ON_PIPELINE_SETTINGS_UPDATE = True
 
-        sync_pipeline_settings(self.id_data)
+        #sync_pipeline_settings(self.id_data)
         
         _ON_PIPELINE_SETTINGS_UPDATE = False
         
         self.update_pipeline(context)
 
-    pipeline : bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline_settings,
-        set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'),
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
+    enabled: bpy.props.BoolProperty(name='Enable Cider', default=False)
+    display_viewport: bpy.props.BoolProperty(name='Viewport Display', default=True)
+    pipeline : bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline_settings, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
+    viewport_bit_depth : bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline_settings)
+    overrides : bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
 
-    viewport_bit_depth : bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], 
-        name="Bit Depth (Viewport)", update=update_pipeline_settings,
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
-    overrides : bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render',
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
+    def draw_header(self, layout):
+        layout.prop(self, 'enabled', text="")
 
     def draw_ui(self, layout):
         layout.use_property_split = True
@@ -98,33 +96,47 @@ class OT_CiderReloadPipeline(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.cider.enabled and context.scene.world is not None
+        return context.scene.cider.enabled
 
     def execute(self, context):
         import Bridge
         Bridge.reload()
-        context.scene.world.cider.update_pipeline(context)
+        context.scene.cider.update_pipeline(context)
         return {'FINISHED'}
-
 
 class CIDER_PT_Pipeline(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
 
-    bl_context = "world"
-    bl_label = "Pipeline Settings"
+    bl_context = "render"
+    bl_label = "Cider"
+
+    def draw_header(self,context):
+        context.scene.cider.draw_header(self.layout)
+    
+    def draw(self, context):
+        context.scene.cider.draw_ui(self.layout)
+
+class VIEW3D_PT_Cider(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    bl_label = "Cider"
 
     @classmethod
     def poll(cls, context):
-        return context.scene.cider.enabled and context.scene.world is not None
+        return context.scene.cider.enabled and context.space_data.shading.type == 'RENDERED'
 
     def draw(self, context):
-        context.scene.world.cider.draw_ui(self.layout)
+        stats = CiderPipeline.get_bridge().get_stats()
+        for line in stats.splitlines():
+            self.layout.label(text=line)
 
 classes = (
     CiderPipeline,
     OT_CiderReloadPipeline,
     CIDER_PT_Pipeline,
+    VIEW3D_PT_Cider
 )
 
 def setup_all_ids():
@@ -155,20 +167,6 @@ def setup_parameters(ids):
     }
 
     for bid in ids:
-        # if isinstance(bid, bpy.types.World):
-            # bid.cider.graph_types.clear()
-            # bid.cider.material_types.clear()
-            # for graph in get_bridge().graphs.values():
-            #     bid.cider.graph_types.add().name = graph.name
-            #     if graph.language == 'GLSL':
-            #         bid.cider.material_types.add().name = graph.name
-        if isinstance(bid, bpy.types.Material):
-            #Patch material types
-            if bid.cider.material_type == '':
-                if bid.cider.shader_nodes:
-                    bid.cider.material_type = bid.cider.shader_nodes.graph_type
-                else:
-                    bid.cider.material_type = 'Mesh'
         for cls, parameters in class_parameters_map.items():
             if isinstance(bid, cls):
                 bid.cider_parameters.setup(parameters)
@@ -187,10 +185,10 @@ def depsgraph_update(scene, depsgraph):
             _BRIDGE = None
             return
         
-        sync_pipeline_settings()
+        #sync_pipeline_settings()
 
         if _BRIDGE is None:
-            scene.world.cider.update_pipeline(bpy.context)
+            scene.cider.update_pipeline(bpy.context)
             return
 
         ids = []
@@ -237,7 +235,7 @@ def load_scene(dummy1=None,dummy2=None):
 @bpy.app.handlers.persistent
 def load_scene_post(dummy1=None,dummy2=None):
     if is_cider_active():
-        bpy.context.scene.world.cider.update_pipeline(bpy.context)
+        bpy.context.scene.cider.update_pipeline(bpy.context)
 
 __SAVE_PATH = None
 @bpy.app.handlers.persistent
@@ -255,7 +253,7 @@ def track_pipeline_changes():
         return 1
     try:
         scene = bpy.context.scene
-        cider = scene.world.cider
+        cider = scene.cider
         path = bpy.path.abspath(cider.pipeline, library=cider.id_data.library)
         if os.path.exists(path):
             stats = os.stat(path)
@@ -269,8 +267,7 @@ def track_pipeline_changes():
 
 def register():
     for _class in classes: bpy.utils.register_class(_class)
-    bpy.types.World.cider = bpy.props.PointerProperty(type=CiderPipeline,
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
+    bpy.types.Scene.cider = bpy.props.PointerProperty(type=CiderPipeline)
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update)
     bpy.app.handlers.load_pre.append(load_scene)
     bpy.app.handlers.load_post.append(load_scene_post)
@@ -280,7 +277,7 @@ def register():
     
 def unregister():
     for _class in reversed(classes): bpy.utils.unregister_class(_class)
-    del bpy.types.World.cider
+    del bpy.types.Scene.cider
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update)
     bpy.app.handlers.load_pre.remove(load_scene)
     bpy.app.handlers.load_post.remove(load_scene_post)

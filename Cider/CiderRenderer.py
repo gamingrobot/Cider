@@ -22,7 +22,6 @@ def high_res_sleep(seconds):
 
 
 class CiderRenderer:
-    #TODO dont do this setup if disabled
     def __init__(self, *args, **kwargs):
         self.display_draw = None
         self.scene = Scene.Scene()
@@ -51,10 +50,9 @@ class CiderRenderer:
             scene.proxys = {}
 
         scene.parameters = depsgraph.scene_eval.cider_parameters.get_parameters(overrides, scene.proxys)
-        scene.world_parameters = depsgraph.scene_eval.world.cider_parameters.get_parameters(overrides, scene.proxys)
 
-        override_material = scene.world_parameters['Material.Override']
-        default_material = scene.world_parameters['Material.Default']
+        # override_material = scene.parameters['Material.Override']
+        # default_material = scene.parameters['Material.Default']
 
         scene.frame = depsgraph.scene_eval.frame_current
         r = depsgraph.scene_eval.render
@@ -126,61 +124,40 @@ class CiderRenderer:
 
                 tags = set(collection.name for collection in obj.original.users_collection)
                 
+                if len(obj.material_slots) > 0:
+                    for i, slot in enumerate(obj.material_slots):
+                        if slot.material:
+                            material_name = slot.material.name_full
+                            material_key = ('material',material_name)
+                            if material_key not in scene.proxys.keys():
+                                material_parameters = slot.material.cider_parameters.get_parameters(overrides, scene.proxys)
+                                from Bridge.Proxys import MaterialProxy
+                                scene.proxys[material_key]  = MaterialProxy('', {}, material_parameters)
+                            material = scene.proxys[material_key]
+                            result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
+                            scene.objects.append(result)
+
+                # TODO fix material not existing
                 # if len(obj.material_slots) > 0:
                 #     for i, slot in enumerate(obj.material_slots):
                 #         material = default_material
-                #         if slot.material and slot.material.malt.get_source_path() != '':
+                #         if slot.material:
                 #             material_name = slot.material.name_full
                 #             material_key = ('material',material_name)
                 #             if material_key not in scene.proxys.keys():
-                #                 path = slot.material.malt.get_source_path()
-                #                 shader_parameters = slot.material.malt.parameters.get_parameters(overrides, scene.proxys)
+                #                 shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
                 #                 material_parameters = slot.material.cider_parameters.get_parameters(overrides, scene.proxys)
                 #                 from Bridge.Proxys import MaterialProxy
-                #                 scene.proxys[material_key]  = MaterialProxy(path, shader_parameters, material_parameters)
+                #                 scene.proxys[material_key]  = MaterialProxy('', shader_parameters, material_parameters)
                 #             material = scene.proxys[material_key]
-                #         if override_material: material = override_material
                 #         result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
                 #         scene.objects.append(result)
                 # else:
-                material = default_material
-                if override_material: material = override_material
-                result = Scene.Object(matrix, mesh[0], material, obj_parameters, mirror_scale, tags)
-                scene.objects.append(result)
-           
-            # elif obj.type == 'LIGHT':
-            #     if obj.data.type == 'AREA':
-            #         return #Not supported
+                #     material = default_material
+                # result = Scene.Object(matrix, mesh[0], material, obj_parameters, mirror_scale, tags)
+                # scene.objects.append(result)
 
-            #     malt_light = obj.data.malt
-
-            #     light = Scene.Light()
-            #     light.color = tuple(obj.data.color * malt_light.strength)
-            #     light.position = tuple(matrix.translation)
-            #     light.direction = tuple(matrix.to_quaternion() @ Vector((0.0,0.0,-1.0)))
-            #     if malt_light.override_global_settings:
-            #         light.sun_max_distance = malt_light.max_distance
-            #     light.radius = malt_light.radius
-            #     light.spot_angle = malt_light.spot_angle
-            #     light.spot_blend = malt_light.spot_blend_angle
-            #     light.parameters = obj.data.cider_parameters.get_parameters(overrides, scene.proxys)
-
-            #     types = {
-            #         'SUN' : 1,
-            #         'POINT' : 2,
-            #         'SPOT' : 3,
-            #     }
-            #     light.type = types[obj.data.type]
-
-            #     if light.type == types['SUN']:
-            #         light.matrix = flatten_matrix(matrix.to_quaternion().to_matrix().to_4x4().inverted())
-            #     else:
-            #         #Scaling too ????
-            #         light.matrix = flatten_matrix(matrix.inverted())
-                
-            #     scene.lights.append(light)
-
-        is_f12 = not viewport #depsgraph.mode == 'RENDER'
+        is_f12 = not viewport
 
         def visible_display(obj):
             return obj.display_type in ('TEXTURED','SOLID') or obj.type == 'LIGHT'
@@ -200,32 +177,6 @@ class CiderRenderer:
                     add_object(instance.instance_object, instance.matrix_world, id)
         
         return scene
-    
-    # def get_AOVs(self, scene):
-    #     #TODO: Hardcoded for now
-    #     result = {}
-    #     try:
-    #         render_tree = scene.world.cider_parameters.graphs['Render'].graph
-    #         for io in render_tree.get_custom_io('Render'):
-    #             if io['io'] in ['out', 'inout'] and io['type'] == 'Texture':
-    #                 result[io['name']] = GL.GL_RGBA32F
-    #     except:
-    #         import traceback
-    #         traceback.print_exc()
-    #     return result        
-    
-    # def update_render_passes(self, scene=None, renderlayer=None):
-    #     bridge = CiderPipeline.get_bridge(scene.world, True)
-    #     render_outputs = bridge.render_outputs
-    #     if 'COLOR' in render_outputs.keys():
-    #         self.register_pass(scene, renderlayer, "Combined", 4, "RGBA", 'COLOR')
-    #     if 'DEPTH' in render_outputs.keys():
-    #         self.register_pass(scene, renderlayer, "Depth", 1, "R", 'VALUE')
-    #     from itertools import chain
-    #     for output, format in render_outputs.items():
-    #         if output not in ('COLOR', 'DEPTH'):
-    #             #TODO: 'COLOR' vs 'VECTOR' ???
-    #             self.register_pass(scene, renderlayer, output, 4, "RGBA", 'COLOR')
 
     def render(self, context, depsgraph):
         scene = depsgraph.scene_eval
@@ -237,7 +188,7 @@ class CiderRenderer:
 
         overrides = ['Final Render']
 
-        bridge = CiderPipeline.get_bridge(depsgraph.scene.world, True)
+        bridge = CiderPipeline.get_bridge(depsgraph.scene, True)
         if self.bridge is not bridge:
             self.bridge = bridge
             self.bridge_id = self.bridge.get_viewport_id()
@@ -325,14 +276,6 @@ class CiderRenderer:
         scene = self.get_scene(context, depsgraph, self.request_scene_update, overrides, viewport=True)
         viewport_resolution = context.region.width, context.region.height
         resolution = viewport_resolution
-
-        resolution_scale = scene.world_parameters['Viewport.Resolution Scale']
-        mag_filter = GL.GL_LINEAR
-        if resolution_scale != 1.0:
-            w,h = resolution
-            resolution = round(w*resolution_scale), round(h*resolution_scale)
-            smooth_interpolation = scene.world_parameters['Viewport.Smooth Interpolation']
-            mag_filter = GL.GL_LINEAR if smooth_interpolation else GL.GL_NEAREST
 
         if self.request_new_frame:
             self.bridge.render(self.bridge_id, resolution, scene, self.request_scene_update, CAPTURE)
@@ -494,100 +437,49 @@ _RENDERER = None
 
 @bpy.app.handlers.persistent
 def on_pre_render(scene: bpy.types.Scene):
-    if not bpy.context.scene.cider.enabled:
-        return
-
-    global _RENDERER
-    if _RENDERER is None:
-        _RENDERER = CiderRenderer()
-    
-    # TODO pull deps from viewlayers?
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    try:
-        _RENDERER.render(bpy.context, depsgraph)
-    except:
-        raise
+    if bpy.context.scene.cider.enabled:
+        global _RENDERER
+        if _RENDERER is None:
+            _RENDERER = CiderRenderer()
+        
+        # TODO pull deps from viewlayers?
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        try:
+            _RENDERER.render(bpy.context, depsgraph)
+        except:
+            raise
 
 @bpy.app.handlers.persistent
 def depsgraph_update(scene, depsgraph):
-    if not bpy.context.scene.cider.enabled:
-        return
+    if bpy.context.scene.cider.enabled:
+        global _RENDERER
+        if _RENDERER is None:
+            return
 
-    global _RENDERER
-    if _RENDERER is None:
-        return
-    
-    try:
-        _RENDERER.view_update()
-    except:
-        raise
+        try:
+            _RENDERER.view_update()
+        except:
+            raise
 
 def viewport_draw():
-    if not bpy.context.scene.cider.enabled or bpy.context.space_data.shading.type != 'RENDERED':
-        return
-    
-    global _RENDERER
-    if _RENDERER is None:
-        _RENDERER = CiderRenderer()
-    
-    depsgraph = bpy.context.evaluated_depsgraph_get()
+    if bpy.context.scene.cider.enabled and bpy.context.scene.cider.display_viewport and bpy.context.space_data.shading.type == 'RENDERED':
+        global _RENDERER
+        if _RENDERER is None:
+            _RENDERER = CiderRenderer()
+        
+        depsgraph = bpy.context.evaluated_depsgraph_get()
 
-    try:
-        _RENDERER.view_draw(bpy.context, depsgraph)
-    except:
-        raise
-
-class CIDER_PT_RenderSettings(bpy.types.Panel):
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-
-    bl_context = "render"
-    bl_label = "Cider"
-
-    def draw_header(self,context):
-        context.scene.cider.draw_header(self.layout)
-    
-    def draw(self, context):
-        context.scene.cider.draw_ui(self.layout)
-
-
-class CiderRenderSettings(bpy.types.PropertyGroup):
-    enabled: bpy.props.BoolProperty(name='Enable Cider', default=False,
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
-
-    def draw_header(self, layout):
-        layout.prop(self, 'enabled', text="")
-
-    def draw_ui(self, layout):
-        return
-
-class VIEW3D_PT_Cider_Stats(bpy.types.Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "View"
-    bl_label = "Cider Stats"
-
-    @classmethod
-    def poll(cls, context):
-        return context.scene.cider.enabled and context.space_data.shading.type == 'RENDERED'
-
-    def draw(self, context):
-        stats = CiderPipeline.get_bridge().get_stats()
-        for line in stats.splitlines():
-            self.layout.label(text=line)
+        try:
+            _RENDERER.view_draw(bpy.context, depsgraph)
+        except:
+            raise
 
 classes = [
-    CiderRenderSettings,
-    CIDER_PT_RenderSettings,
-    VIEW3D_PT_Cider_Stats,
 ]
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    
-    bpy.types.Scene.cider = bpy.props.PointerProperty(type=CiderRenderSettings,
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
 
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update)
     bpy.app.handlers.render_pre.append(on_pre_render)
@@ -598,9 +490,7 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
-    del bpy.types.Scene.cider
-
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update)
     bpy.app.handlers.render_pre.remove(on_pre_render)
-    bpy.types.SpaceView3D.draw_handler_remove(viewport_draw, 'WINDOW')
+    #bpy.types.SpaceView3D.draw_handler_remove(viewport_draw, 'WINDOW')
 

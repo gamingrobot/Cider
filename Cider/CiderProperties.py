@@ -176,15 +176,6 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
                         self.enums[name].enum = copy_from.enums[copy_name].enum
                     else:
                         self.enums[name].enum = parameter.default_value
-            
-            if parameter.type == Type.TEXTURE:
-                if name not in self.textures:
-                    self.textures.add().name = name
-                if type_changed or self.textures[name] == rna[name]['default']:
-                    if copy_values and copy_name in copy_from.textures.keys():
-                        self.textures[name].texture = copy_from.textures[copy_name].texture
-                    elif isinstance(parameter.default_value, bpy.types.Image):
-                        self.textures.texture = parameter.default_value
 
             if parameter.type == Type.MATERIAL:
                 if name not in self.materials:
@@ -192,35 +183,35 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
                 
                 self.materials[name].extension = parameter.extension
                 self.materials[name].type = parameter.graph_type
-                shader_path = parameter.default_value
+                #shader_path = parameter.default_value
                 
                 if type_changed and copy_values and copy_name in copy_from.materials.keys():
                     self.materials[name].material = copy_from.materials[copy_name].material
-                elif shader_path and shader_path != '':
-                    if isinstance(shader_path, str):
-                        material_name = name + ' : ' + os.path.basename(shader_path)
-                        if material_name not in bpy.data.materials:
-                            bpy.data.materials.new(material_name)
-                            material = bpy.data.materials[material_name]
-                            material.cider.shader_source = shader_path
-                        material = self.materials[name].material
-                        if type_changed or (material and rna[name]['default'] == material.cider.shader_source):
-                            self.materials[name].material = bpy.data.materials[material_name]
+                # elif shader_path and shader_path != '':
+                #     if isinstance(shader_path, str):
+                #         material_name = name + ' : ' + os.path.basename(shader_path)
+                #         if material_name not in bpy.data.materials:
+                #             bpy.data.materials.new(material_name)
+                #             material = bpy.data.materials[material_name]
+                #             material.cider.shader_source = shader_path
+                #         material = self.materials[name].material
+                #         if type_changed or (material and rna[name]['default'] == material.cider.shader_source):
+                #             self.materials[name].material = bpy.data.materials[material_name]
                     
-                    if isinstance(shader_path, tuple):
-                        blend_path, material_name = parameter.default_value
-                        blend_path += '.blend'
-                        if material_name not in bpy.data.materials:
-                            internal_dir = 'Material'
-                            bpy.ops.wm.append(
-                                filepath=os.path.join(blend_path, internal_dir, material_name),
-                                directory=os.path.join(blend_path, internal_dir),
-                                filename=material_name
-                            )
-                            if bpy.data.materials[material_name].cider.shader_nodes:
-                                bpy.data.materials[material_name].cider.shader_nodes.reload_nodes()
-                        if type_changed:
-                            self.materials[name].material = bpy.data.materials[material_name]
+                #     if isinstance(shader_path, tuple):
+                #         blend_path, material_name = parameter.default_value
+                #         blend_path += '.blend'
+                #         if material_name not in bpy.data.materials:
+                #             internal_dir = 'Material'
+                #             bpy.ops.wm.append(
+                #                 filepath=os.path.join(blend_path, internal_dir, material_name),
+                #                 directory=os.path.join(blend_path, internal_dir),
+                #                 filename=material_name
+                #             )
+                #             if bpy.data.materials[material_name].cider.shader_nodes:
+                #                 bpy.data.materials[material_name].cider.shader_nodes.reload_nodes()
+                #         if type_changed:
+                #             self.materials[name].material = bpy.data.materials[material_name]
 
             if name not in self.override_from_parents:
                 self.override_from_parents.add().name = name
@@ -308,8 +299,6 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
             self.bools[old_name].name = new_name
         elif type == Type.ENUM:
             self.enums[old_name].name = new_name
-        elif type == Type.TEXTURE:
-            self.textures[old_name].name = new_name
         elif type == Type.GRADIENT:
             self.gradients[old_name].name = new_name
         elif type == Type.MATERIAL:
@@ -332,8 +321,6 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
             remove(self.bools, name)
         elif type == Type.ENUM:
             remove(self.enums, name)
-        elif type == Type.TEXTURE:
-            remove(self.textures, name)
         elif type == Type.MATERIAL:
             remove(self.materials, name)
 
@@ -427,17 +414,14 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
                 return None
         elif rna[key]['type'] == Type.MATERIAL:
             material = self.materials[key].material
-            extension = self.materials[key].extension
             if retrieve_blender_type:
                 return material
             if material:
                 material_key = ('material', material.name_full)
                 if material_key not in proxys.keys():
-                    path = material.cider.get_source_path()
-                    shader_parameters = material.cider.parameters.get_parameters(overrides, proxys)
                     material_parameters = material.cider_parameters.get_parameters(overrides, proxys)
                     from Bridge.Proxys import MaterialProxy
-                    proxys[material_key] = MaterialProxy(path, shader_parameters, material_parameters)
+                    proxys[material_key] = MaterialProxy('', {}, material_parameters)
                 return proxys[material_key]
             else:
                 return None
@@ -581,14 +565,6 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
             make_row().prop(self.bools[key], 'boolean', text='')
         elif rna[key]['type'] == Type.ENUM:
             make_row().prop(self.enums[key], 'enum', text='')
-        elif rna[key]['type'] == Type.TEXTURE:
-            make_row(True)
-            row = layout.row(align=True)
-            if self.textures[key].texture:
-                row = row.split(factor=0.8, align=True)
-            row.template_ID(self.textures[key], "texture", new="image.new", open="image.open")
-            if self.textures[key].texture:
-                row.prop(self.textures[key].texture.colorspace_settings, 'name', text='')
         elif rna[key]['type'] == Type.MATERIAL:
             make_row(True)
             row = layout.row(align=True)
@@ -616,7 +592,7 @@ class OT_CiderNewOverride(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     def get_override_enums(self, context):
-        overrides = context.scene.world.cider.overrides.split(',')
+        overrides = context.scene.cider.overrides.split(',')
         result = []
         for i, override in enumerate(overrides):
             result.append((override, override, '', i))
@@ -672,7 +648,7 @@ class CIDER_PT_Base(bpy.types.Panel):
 
 
 class CIDER_PT_Scene(CIDER_PT_Base):
-    bl_context = "scene"
+    bl_context = "render"
     @classmethod
     def get_parameter_type(cls):
         return 'scene'
@@ -707,12 +683,12 @@ class CIDER_PT_Object(CIDER_PT_Base):
     def get_cider_property_owner(cls, context):
         return context.object
 
-# class CIDER_PT_Material(CIDER_PT_Base):
-#     bl_context = "material"
-#     @classmethod
-#     def get_cider_property_owner(cls, context):
-#         if context.material:
-#             return context.material
+class CIDER_PT_Material(CIDER_PT_Base):
+    bl_context = "material"
+    @classmethod
+    def get_cider_property_owner(cls, context):
+        if context.material:
+            return context.material
 
 class CIDER_PT_Mesh(CIDER_PT_Base):
     bl_context = "data"
@@ -748,6 +724,7 @@ classes = (
     CIDER_PT_World,
     CIDER_PT_Camera,
     CIDER_PT_Object,
+    CIDER_PT_Material,
     CIDER_PT_Mesh,
     CIDER_PT_Light,
 )

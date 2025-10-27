@@ -5,6 +5,15 @@ from Malt.Scene import TextureShaderResource
 from Malt.Pipeline import *
 from Malt.Render import Sampling
 
+class ParameterShaderResource():
+    def __init__(self, name, parameter):
+        self.name = name
+        self.parameter = parameter
+    
+    def shader_callback(self, shader):
+        if self.name in shader.uniforms.keys():
+            shader.uniforms[self.name] = self.parameter
+
 class LinePipeline(Pipeline):
 
     DEFAULT_SHADER = None
@@ -23,20 +32,48 @@ class LinePipeline(Pipeline):
             'MAIN_PASS' : self.compile_shader_from_source(source, [], ['MAIN_PASS']),
             'LINE_PASS' : self.compile_shader_from_source(source, [], ['LINE_PASS']),
         }
+
+    def copy_default_shader(self):
+        return {
+            'PRE_PASS' : LinePipeline.DEFAULT_SHADER['PRE_PASS'],
+            'MAIN_PASS' : LinePipeline.DEFAULT_SHADER['MAIN_PASS'].copy(),
+            'LINE_PASS' : LinePipeline.DEFAULT_SHADER['LINE_PASS'],
+        }
     
     def setup_parameters(self):
-        super().setup_parameters()
-        self.parameters.world['Samples.Grid Size'] = Parameter(8, Type.INT, doc="""
+        self.parameters = PipelineParameters()
+        
+        self.parameters.mesh['double_sided'] = Parameter(False, Type.BOOL, doc=
+            "Disables backface culling, so geometry is rendered from both sides.")
+        
+        self.parameters.mesh['precomputed_tangents'] = Parameter(False, Type.BOOL, doc="""
+            Load precomputed mesh tangents *(needed for improving normal mapping quality on low poly meshes)*. 
+            It's disabled by default since it slows down mesh loading in Blender.  
+            When disabled, the *tangents* are calculated on the fly from the *pixel shader*.""")
+
+        self.parameters.scene['Samples.Grid Size'] = Parameter(8, Type.INT, doc="""
             The number of render samples per side in the sampling grid. 
             The total number of samples is the square of this value minus the samples that fall outside the sampling radius.  
             Higher values will provide cleaner renders at the cost of increased render times.""")
         
-        self.parameters.world['Samples.Grid Size @ Preview'] = Parameter(4, Type.INT)
+        self.parameters.scene['Samples.Grid Size @ Preview'] = Parameter(4, Type.INT)
         
-        self.parameters.world['Samples.Width'] = Parameter(1.0, Type.FLOAT, doc="""
+        self.parameters.scene['Samples.Width'] = Parameter(1.0, Type.FLOAT, doc="""
             The width (and height) of the sampling grid. 
             Larger values will result in smoother/blurrier images while lower values will result in sharper/more aliased ones. 
             Keep it withing the 1-2 range for best results.""")
+                
+        self.parameters.material['Line.Color'] = Parameter((0.0,0.0,0.0,1.0), Type.FLOAT, size=4, doc="Width Units")
+        self.parameters.material['Line.Width Scale'] = Parameter(2.0, Type.FLOAT, doc="Width Scale")
+        self.parameters.material['Line.Width Units'] = EnumParameter(['Pixel', 'Screen', 'World'], 'Pixel', Type.ENUM, doc="Width Units")
+        self.parameters.material['Line Depth.Width'] = Parameter(1.0, Type.FLOAT, doc="Depth Width")
+        self.parameters.material['Line Depth.Threshold'] = Parameter(0.1, Type.FLOAT, doc="Depth Threshold")
+        self.parameters.material['Line Depth.Threshold Range'] = Parameter(0.0, Type.FLOAT, doc="Depth Threshold Range")
+        self.parameters.material['Line Normal.Width'] = Parameter(1.0, Type.FLOAT, doc="Normal Width")
+        self.parameters.material['Line Normal.Threshold'] = Parameter(0.5, Type.FLOAT, doc="Normal Threshold")
+        self.parameters.material['Line Normal.Threshold Range'] = Parameter(0.0, Type.FLOAT, doc="Normal Threshold Range")
+        self.parameters.material['Line Object.Boundary Width'] = Parameter(1.0, Type.FLOAT, doc="Object Boundary Width")
+
 
     def setup_resources(self):
         super().setup_resources()
@@ -63,33 +100,66 @@ class LinePipeline(Pipeline):
         self.fbo_prepass = RenderTarget([self.t_normal_depth, self.t_id], self.t_depth)
         self.t_linecolor = Texture(resolution, GL_RGBA16F)
         self.t_linewidth = Texture(resolution, GL_R16F)
-        self.fbo_mainpass = RenderTarget([self.t_linecolor, self.t_linewidth])
+        self.fbo_mainpass = RenderTarget([self.t_linecolor, self.t_linewidth], self.t_depth)
         self.t_line = Texture(resolution, GL_RGBA16F)
         self.fbo_linepass = RenderTarget([self.t_line])
         self.t_aa = Texture(resolution, GL_RGBA16F)
         self.fbo_aa = RenderTarget([self.t_aa])
 
     def do_render(self, resolution, scene, is_final_render, is_new_frame):        
+        if self.sampling_grid_size != scene.parameters['Samples.Grid Size']:
+            self.sampling_grid_size = scene.parameters['Samples.Grid Size']
+            self.samples = None
+
+        sample_offset = self.get_sample(scene.parameters['Samples.Width'])
+
+        # Setup material shaders
+        for material in scene.batches.keys():
+            material.shader = self.copy_default_shader()
+            for shader in material.shader.values():
+                # TODO clean up
+                if 'IN_LINE_COLOR' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_COLOR'].set_value(material.parameters['Line.Color'])
+                if 'IN_LINE_WIDTH_SCALE' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_WIDTH_SCALE'].set_value(material.parameters['Line.Width Scale'])
+                if 'IN_LINE_WIDTH_UNITS' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_WIDTH_UNITS'].set_value(material.parameters['Line.Width Units'])
+                    #shader.uniforms['IN_LINE_WIDTH_UNITS'].set_value(0)
+                if 'IN_LINE_DEPTH_WIDTH' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_DEPTH_WIDTH'].set_value(material.parameters['Line Depth.Width'])
+                if 'IN_LINE_DEPTH_THRESHOLD' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD'].set_value(material.parameters['Line Depth.Threshold'])
+                if 'IN_LINE_DEPTH_THRESHOLD_RANGE' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD_RANGE'].set_value(material.parameters['Line Depth.Threshold Range'])
+                if 'IN_LINE_NORMAL_WIDTH' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_NORMAL_WIDTH'].set_value(material.parameters['Line Normal.Width'])
+                if 'IN_LINE_NORMAL_THRESHOLD' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD'].set_value(material.parameters['Line Normal.Threshold'])
+                if 'IN_LINE_NORMAL_THRESHOLD_RANGE' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD_RANGE'].set_value(material.parameters['Line Normal.Threshold Range'])
+                if 'IN_LINE_OBJECT_THRESHOLD_RANGE' in shader.uniforms.keys():
+                    shader.uniforms['IN_LINE_OBJECT_THRESHOLD_RANGE'].set_value(material.parameters['Line Object.Boundary Width'])
+        
+        self.common_buffer.load(scene, resolution, sample_offset, self.sample_count)
         shader_resources = { 'COMMON_UNIFORMS' : self.common_buffer }
 
         # Pre
         self.fbo_prepass.clear([(0,0,0,1), (0,0,0,0)], 1)
-        self.draw_scene_pass(self.fbo_prepass, scene.batches, 'PRE_PASS', self.default_shader['PRE_PASS'], shader_resources)
+        self.draw_scene_pass(self.fbo_prepass, scene.batches, 'PRE_PASS', None, shader_resources)
         
         # Main
-        # TODO can this be a screenpass?
         self.fbo_mainpass.clear([(0,0,0,0), (0)])
         shader_resources['IN_NORMAL_DEPTH'] = TextureShaderResource('IN_NORMAL_DEPTH', self.t_normal_depth)
         shader_resources['IN_ID'] = TextureShaderResource('IN_ID', self.t_id)
-        self.draw_scene_pass(self.fbo_mainpass, scene.batches, 'MAIN_PASS', self.default_shader['MAIN_PASS'], shader_resources)
+        self.draw_scene_pass(self.fbo_mainpass, scene.batches, 'MAIN_PASS', None, shader_resources)
 
         # Line
         self.fbo_linepass.clear()
         line_pass = self.default_shader['LINE_PASS']
         line_pass.textures['IN_NORMAL_DEPTH'] = self.t_normal_depth
         line_pass.textures['IN_ID'] = self.t_id
-        line_pass.textures['IN_LINE_COLOR'] = self.t_linecolor
-        line_pass.textures['IN_LINE_WIDTH'] = self.t_linewidth
+        line_pass.textures['IN_COLOR'] = self.t_linecolor
+        line_pass.textures['IN_WIDTH'] = self.t_linewidth
         self.common_buffer.shader_callback(line_pass)
         self.draw_screen_pass(line_pass, self.fbo_linepass) 
 
@@ -99,6 +169,7 @@ class LinePipeline(Pipeline):
         self.blend_texture(self.t_line, self.fbo_aa, 1.0 / (self.sample_count + 1))
 
         return { 'COLOR' : self.t_aa }
+
 
 
 PIPELINE = LinePipeline
