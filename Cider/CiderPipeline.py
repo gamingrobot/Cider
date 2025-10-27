@@ -1,8 +1,7 @@
 import os, time
 import bpy
-from . import CiderMeshes
+from . import CiderMeshes, CiderMaterial
 from Cider.CiderUtils import cider_path_getter, cider_path_setter
-
 
 _BRIDGE = None
 _PIPELINE_PARAMETERS = None
@@ -59,6 +58,8 @@ class CiderPipeline(bpy.types.PropertyGroup):
         
         #CiderMaterial.reset_materials()
         CiderMeshes.reset_meshes()
+
+        self.setup_line_presets()
         
         #TODO: This can fail depending on the current context, ID classes might not be writeable
         setup_all_ids()
@@ -80,6 +81,12 @@ class CiderPipeline(bpy.types.PropertyGroup):
     pipeline : bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline_settings, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
     viewport_bit_depth : bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline_settings)
     overrides : bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
+    line_presets : bpy.props.CollectionProperty(name='Line Settings', type=CiderMaterial.CiderLinePreset)
+
+    def setup_line_presets(self):
+        if not self.line_presets:
+            setting = self.line_presets.add()
+            setting.name = "Default"
 
     def draw_header(self, layout):
         layout.prop(self, 'enabled', text="")

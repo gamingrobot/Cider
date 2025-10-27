@@ -22,13 +22,9 @@ class CiderTexturePropertyWrapper(bpy.types.PropertyGroup):
         options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
 
 class CiderMaterialPropertyWrapper(bpy.types.PropertyGroup):
-    def poll(self, material):
-        return material.cider.material_type == self.type or self.type == ''
-    material : bpy.props.PointerProperty(type=bpy.types.Material, poll=poll,
+    material : bpy.props.PointerProperty(type=bpy.types.Material,
         options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
     extension : bpy.props.StringProperty(
-        options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
-    type : bpy.props.StringProperty(
         options={'LIBRARY_EDITABLE'}, override={'LIBRARY_OVERRIDABLE'})
 
     def add_or_duplicate(self, name=None):
@@ -38,7 +34,6 @@ class CiderMaterialPropertyWrapper(bpy.types.PropertyGroup):
             self.material = self.material.copy()
         else:
             self.material = bpy.data.materials.new(name)
-            self.material.cider.material_type = self.type
         self.id_data.update_tag()
         self.material.update_tag()
 
@@ -574,7 +569,7 @@ class CiderPropertyGroup(bpy.types.PropertyGroup):
                 row.operator('wm.cider_callback', text='', icon='DUPLICATE').callback.set(
                     self.materials[key].add_or_duplicate, 'Duplicate')
                 material = self.materials[key].material
-                material.cider.draw_ui(layout.box(), extension, material.cider_parameters)
+                #material.cider.draw_ui(layout.box(), extension, material.cider_parameters)
             else:
                 row.operator('wm.cider_callback', text='New', icon='ADD').callback.set(
                     self.materials[key].add_or_duplicate, 'New')
