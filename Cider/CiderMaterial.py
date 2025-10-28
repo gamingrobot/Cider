@@ -2,11 +2,13 @@ import bpy
 from . CiderUtils import CiderCallback
 from pprint import pprint
 
+# TODO first LineStyle in project doesnt have .cider?
+
 class CiderMaterial(bpy.types.PropertyGroup):
     def poll_style(self, object): # TODO: not sure if needed
         return object.cider is not None
     
-    line_style: bpy.props.PointerProperty(name="Line Style", type=bpy.types.FreestyleLineStyle, poll=poll_style)
+    line_style: bpy.props.PointerProperty(name="LineStyle", type=bpy.types.FreestyleLineStyle, poll=poll_style)
 
     def draw_ui(self, layout, context):
         layout.active = self.id_data.library is None #only local data can be edited
@@ -18,7 +20,7 @@ class CiderMaterial(bpy.types.PropertyGroup):
                 # TODO: handle copy
                 return
             else:
-                self.line_style = bpy.data.linestyles.new(f'{self.id_data.name} Line Style')
+                self.line_style = bpy.data.linestyles.new(f'{self.id_data.name} LineStyle')
 
             self.id_data.update_tag()
             self.line_style.update_tag()
@@ -30,7 +32,8 @@ class CiderMaterial(bpy.types.PropertyGroup):
         else:
             row.operator('wm.cider_callback', text='New', icon='ADD').callback.set(style_add_or_duplicate, 'New')
 
-        self.line_style.cider.draw_ui(layout)
+        if self.line_style.cider:
+            self.line_style.cider.draw_ui(layout)
 
 class CIDER_PT_MaterialSettings(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
