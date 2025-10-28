@@ -62,8 +62,8 @@ def do_windows_fixes():
         mp.set_executable(python_executable)
 
 def get_modules():
-    from . import CiderUtils, CiderMeshes, CiderProperties, CiderMaterial, CiderPipeline, CiderRenderer
-    return [ CiderUtils, CiderMeshes, CiderProperties, CiderMaterial, CiderPipeline, CiderRenderer ]
+    from . import CiderUtils, CiderMeshes, CiderProperties, CiderLineStyle, CiderMaterial, CiderPipeline, CiderRenderer
+    return [ CiderUtils, CiderMeshes, CiderProperties, CiderLineStyle, CiderMaterial, CiderPipeline, CiderRenderer ]
 
 
 classes=[

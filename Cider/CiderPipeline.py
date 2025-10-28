@@ -35,6 +35,9 @@ def get_bridge(scene=None, force_creation=False):
 #         if world.cider.viewport_bit_depth != default_world.cider.viewport_bit_depth:
 #             world.cider.viewport_bit_depth = default_world.cider.viewport_bit_depth
 
+# TODO COMPAT_ENGINES
+# TODO which viewlayers are enabled
+
 _ON_PIPELINE_SETTINGS_UPDATE = False
 
 class CiderPipeline(bpy.types.PropertyGroup):
@@ -59,8 +62,6 @@ class CiderPipeline(bpy.types.PropertyGroup):
         #CiderMaterial.reset_materials()
         CiderMeshes.reset_meshes()
 
-        self.setup_line_presets()
-        
         #TODO: This can fail depending on the current context, ID classes might not be writeable
         setup_all_ids()
 
@@ -81,12 +82,6 @@ class CiderPipeline(bpy.types.PropertyGroup):
     pipeline : bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline_settings, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
     viewport_bit_depth : bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline_settings)
     overrides : bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
-    line_presets : bpy.props.CollectionProperty(name='Line Settings', type=CiderMaterial.CiderLinePreset)
-
-    def setup_line_presets(self):
-        if not self.line_presets:
-            setting = self.line_presets.add()
-            setting.name = "Default"
 
     def draw_header(self, layout):
         layout.prop(self, 'enabled', text="")
