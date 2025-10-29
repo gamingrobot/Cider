@@ -31,6 +31,7 @@ class CiderRenderer:
         self.bridge = CiderPipeline.get_bridge()
         self.bridge_id = self.bridge.get_viewport_id() if self.bridge else None
         self.last_frame_time = 0
+        self.request_cancel = False
 
     def __del__(self):
         try:
@@ -194,19 +195,14 @@ class CiderRenderer:
         finished = False
 
         import time
-        while not finished:
+        while not finished and not self.request_cancel:
             buffers, finished, read_resolution = self.bridge.render_result(0)
             time.sleep(0.1)
-            if finished: break
-        
-        size = self.size_x * self.size_y
+            if finished: break    
 
-        from itertools import chain
-        for output in self.bridge.render_outputs.keys():
-            if output not in ('COLOR', 'DEPTH'):
-                self.add_pass(output, 4, 'RGBA')
-        
+        self.request_cancel = False
 
+        # TODO use read_resolution?
         name = f"Cider_{depsgraph.scene.name}_{depsgraph.view_layer.name}"
         image = bpy.data.images.get(name, None)
         if image is None:
@@ -418,30 +414,48 @@ class DisplayDrawGPU():
         gpu.state.blend_set("NONE")
 
 _RENDERER = None
+_IS_RENDERING = False
+
 
 @bpy.app.handlers.persistent
-def on_pre_render(scene: bpy.types.Scene):
+def on_frame_change_post(scene, depsgraph):
     if is_cider_active():
         global _RENDERER
         if _RENDERER is None:
             _RENDERER = CiderRenderer()
         
-        # TODO pull deps from viewlayers?
-        depsgraph = bpy.context.evaluated_depsgraph_get()
         try:
-            _RENDERER.render(bpy.context, depsgraph)
+            if _IS_RENDERING: # Only render if pre_render has been called
+                _RENDERER.view_update()
+                _RENDERER.render(bpy.context, depsgraph)
         except:
             raise
+
+@bpy.app.handlers.persistent
+def on_pre_render(scene):
+    global _IS_RENDERING
+    _IS_RENDERING = True
+
+@bpy.app.handlers.persistent
+def on_render_cancel(scene):
+    global _IS_RENDERING
+    _IS_RENDERING = False
+    global _RENDERER
+    if _RENDERER:
+        _RENDERER.request_cancel = True
+
+@bpy.app.handlers.persistent
+def on_render_complete(scene):
+    global _IS_RENDERING
+    _IS_RENDERING = False
 
 @bpy.app.handlers.persistent
 def depsgraph_update(scene, depsgraph):
     if is_cider_active():
         global _RENDERER
-        if _RENDERER is None:
-            return
-
         try:
-            _RENDERER.view_update()
+            if _RENDERER:
+                _RENDERER.view_update()
         except:
             raise
 
@@ -468,7 +482,10 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update)
+    bpy.app.handlers.frame_change_post.append(on_frame_change_post)
     bpy.app.handlers.render_pre.append(on_pre_render)
+    bpy.app.handlers.render_cancel.append(on_render_cancel)
+    bpy.app.handlers.render_complete.append(on_render_complete)
     global _VIEWPORT_DRAW_HANDLER
     _VIEWPORT_DRAW_HANDLER = bpy.types.SpaceView3D.draw_handler_add(viewport_draw, (), 'WINDOW', 'POST_PIXEL')
 
@@ -478,7 +495,10 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update)
+    bpy.app.handlers.frame_change_post.remove(on_frame_change_post)
     bpy.app.handlers.render_pre.remove(on_pre_render)
+    bpy.app.handlers.render_cancel.remove(on_render_cancel)
+    bpy.app.handlers.render_complete.remove(on_render_complete)
 
     global _VIEWPORT_DRAW_HANDLER
     bpy.types.SpaceView3D.draw_handler_remove(_VIEWPORT_DRAW_HANDLER, 'WINDOW')
