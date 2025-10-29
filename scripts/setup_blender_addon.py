@@ -9,7 +9,7 @@ ARGS = parser.parse_args()
 current_dir = os.path.dirname(os.path.realpath(__file__))
 main_dir = os.path.realpath(os.path.join(current_dir, '..'))
 
-blender_malt_folder = os.path.join(main_dir, 'BlenderMalt')
+blender_cider_folder = os.path.join(main_dir, 'Cider')
 bridge_folder = os.path.join(main_dir, 'Bridge')
 malt_folder = os.path.join(main_dir, 'Malt')
 
@@ -21,7 +21,7 @@ def build_lib(path):
         os.remove(path)
     shutil.rmtree(os.path.join(path, '.build'), onerror=delete_read_only)
 
-build_lib(os.path.join(blender_malt_folder, 'CBlenderMalt'))
+build_lib(os.path.join(blender_cider_folder, 'CBlenderMalt'))
 build_lib(os.path.join(malt_folder, 'GL', 'GLSLParser'))
 build_lib(os.path.join(bridge_folder, 'ipc'))
 build_lib(os.path.join(bridge_folder, 'renderdoc'))
@@ -46,7 +46,7 @@ def make_copy(copy_to, copy_from):
     from distutils.dir_util import copy_tree
     copy_tree(copy_from, copy_to)
 
-import_path = os.path.join(blender_malt_folder, '.MaltPath')
+import_path = os.path.join(blender_cider_folder, '.MaltPath')
 ensure_dir(import_path)
 
 setup_modules = make_link
@@ -59,4 +59,4 @@ setup_modules(os.path.join(import_path, 'Bridge'), os.path.join(main_dir, 'Bridg
 if ARGS.scripts_folder:
     addons_folder = os.path.join(ARGS.scripts_folder, 'addons')
     ensure_dir(addons_folder)
-    make_link(os.path.join(addons_folder, 'BlenderMalt'), blender_malt_folder)
+    make_link(os.path.join(addons_folder, 'Cider'), blender_cider_folder)

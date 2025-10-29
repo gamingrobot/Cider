@@ -75,43 +75,6 @@ class OT_CiderCallback(bpy.types.Operator):
         self.callback.call()
         return {'FINISHED'}
 
-import json
-
-# https://developer.blender.org/T51096
-def to_json_rna_path_node_workaround(cider_property_group, path_from_group):
-    tree = cider_property_group.id_data
-    assert(isinstance(tree, bpy.types.NodeTree))
-    for node in tree.nodes:
-        if node.cider_parameters.as_pointer() == cider_property_group.as_pointer():
-            path = 'nodes["{}"].{}'.format(node.name, path_from_group)
-            return json.dumps(('NodeTree', tree.name_full, path))
-
-def to_json_rna_path(prop):
-    blend_id = prop.id_data
-    id_type = str(blend_id.__class__).split('.')[-1]
-    if isinstance(prop.id_data, bpy.types.NodeTree):
-        id_type = 'NodeTree'
-    id_name = blend_id.name_full
-    path = prop.path_from_id()
-    return json.dumps((id_type, id_name, path))
-
-def from_json_rna_path(prop):
-    id_type, id_name, path = json.loads(prop)
-    data_map = {
-        'Object' : bpy.data.objects,
-        'Mesh' : bpy.data.meshes,
-        'Light' : bpy.data.lights,
-        'Camera' : bpy.data.cameras,
-        'Material' : bpy.data.materials,
-        'World': bpy.data.worlds,
-        'Scene': bpy.data.scenes,
-        'NodeTree' : bpy.data.node_groups
-    }
-    for class_name, data in data_map.items():
-        if class_name in id_type:
-            return data[id_name].path_resolve(path)
-    return None
-
 classes=[
     OT_CiderPrintError,
     CiderCallback,

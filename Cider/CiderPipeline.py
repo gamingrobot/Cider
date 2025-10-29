@@ -19,8 +19,7 @@ def get_bridge(scene=None, force_creation=False):
         scene.cider.update_pipeline(bpy.context)
     return _BRIDGE
 
-# TODO support viewlayers
-# TODO expose pipeline setting
+# TODO support selecting viewlayers
 # TODO setup compositor
 
 class CiderPipeline(bpy.types.PropertyGroup):
@@ -28,8 +27,11 @@ class CiderPipeline(bpy.types.PropertyGroup):
         global _TIMESTAMP
         _TIMESTAMP = time.time()
         
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        pipeline = os.path.join(current_dir,'LinePipeline.py')
+        #TODO: Sync all scenes. Only one active pipeline per Blender instance is supported atm.
+        pipeline = self.pipeline
+        if pipeline == '':
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            pipeline = os.path.join(current_dir,'LinePipeline.py')
 
         path = bpy.path.abspath(pipeline, library=self.id_data.library)
         import Bridge
@@ -69,6 +71,9 @@ class CiderPipeline(bpy.types.PropertyGroup):
         layout.prop(self, "display_viewport", toggle = 1)
         layout.use_property_split = True
         layout.use_property_decorate = False
+        row = layout.row(align=True)
+        row.prop(self, 'pipeline')
+        row.operator('wm.cider_reload_pipeline', text='', icon='FILE_REFRESH')
         layout.prop(self, 'viewport_bit_depth')
         layout.prop(self, 'default_line_style')
         if self.default_line_style:

@@ -153,7 +153,7 @@ class CiderRenderer:
         is_f12 = not viewport
 
         def visible_display(obj):
-            return obj.display_type in ('TEXTURED','SOLID') or obj.type == 'LIGHT'
+            return obj.display_type in ('TEXTURED','SOLID')
 
         for obj in depsgraph.objects:
             if is_f12 or (visible_display(obj) and obj.visible_in_viewport_get(context.space_data)):
@@ -207,7 +207,7 @@ class CiderRenderer:
                 self.add_pass(output, 4, 'RGBA')
         
 
-        name = f"Cider_{depsgraph.scene.name}"
+        name = f"Cider_{depsgraph.scene.name}_{depsgraph.view_layer.name}"
         image = bpy.data.images.get(name, None)
         if image is None:
             image = bpy.data.images.new(
@@ -461,13 +461,16 @@ def viewport_draw():
 classes = [
 ]
 
+_VIEWPORT_DRAW_HANDLER = None
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update)
     bpy.app.handlers.render_pre.append(on_pre_render)
-    bpy.types.SpaceView3D.draw_handler_add(viewport_draw, (), 'WINDOW', 'POST_PIXEL')
+    global _VIEWPORT_DRAW_HANDLER
+    _VIEWPORT_DRAW_HANDLER = bpy.types.SpaceView3D.draw_handler_add(viewport_draw, (), 'WINDOW', 'POST_PIXEL')
 
 
 def unregister():
@@ -476,5 +479,7 @@ def unregister():
 
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update)
     bpy.app.handlers.render_pre.remove(on_pre_render)
-    #bpy.types.SpaceView3D.draw_handler_remove(viewport_draw, 'WINDOW')
+
+    global _VIEWPORT_DRAW_HANDLER
+    bpy.types.SpaceView3D.draw_handler_remove(_VIEWPORT_DRAW_HANDLER, 'WINDOW')
 
