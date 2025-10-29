@@ -182,9 +182,7 @@ class CiderRenderer:
             self.bridge = bridge
             self.bridge_id = self.bridge.get_viewport_id()
         
-        #CiderMaterial.track_shader_changes(force_update=True, async_compilation=False)
 
-        #AOVs = self.get_AOVs(scene)
         scene = self.get_scene(context, depsgraph, True, overrides)
         self.bridge.render(0, resolution, scene, True, AOVs={})
 
@@ -205,39 +203,29 @@ class CiderRenderer:
                 self.add_pass(output, 4, 'RGBA')
         
 
-        name = "Generated"
-        # TODO move to image setup and handle reuse, also pack image
-        existing_image = bpy.data.images.get(name, None)
-        if existing_image is not None:
-            bpy.data.images.remove(existing_image)
-        image = bpy.data.images.new(
-            name,
-            width=self.size_x,
-            height=self.size_y,
-            alpha=True,
-            float_buffer=True
-        )
+        name = f"Cider_{depsgraph.scene.name}"
+        image = bpy.data.images.get(name, None)
+        if image is None:
+            image = bpy.data.images.new(
+                name,
+                width=self.size_x,
+                height=self.size_y,
+                alpha=True,
+                float_buffer=True
+            )
         image.source = "GENERATED"
         image.use_generated_float = True
-        #image.colorspace_settings.name = "Linear Rec.709"
-        #image.alpha_mode = "PREMUL"
+        image.colorspace_settings.name = "Linear Rec.709"
+        image.alpha_mode = "PREMUL"
         image.generated_color = [0, 0, 0, 0]
+        if image.size[0] != self.size_x or image.size[1] != self.size_y:
+            image.scale(image.size[0] if self.size_x <= 0 else self.size_x, image.size[1] if self.size_y <= 0 else self.size_y)
 
         pixels = buffers["COLOR"]
         data_size = len(pixels)
         image.pixels = (ctypes.c_float * data_size).from_address(pixels._buffer.data)
+        image.pack()
 
-        # result = self.begin_result(0, 0, self.size_x, self.size_y, layer=depsgraph.view_layer.name)
-        # passes = result.layers[0].passes
-        
-        # for key, value in passes.items():
-        #     buffer_name = key
-        #     if key == 'Combined': buffer_name = 'COLOR'
-        #     if key == 'Depth': buffer_name = 'DEPTH'
-        #     if buffer_name in buffers and hasattr(buffers[buffer_name], 'buffer'):
-        #         value.rect = buffers[buffer_name].as_np_array((size , value.channels))
-        
-        #self.end_result(result)
         # Delete the scene. Otherwise we get memory leaks.
         del self.scene
 

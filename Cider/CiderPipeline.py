@@ -19,8 +19,9 @@ def get_bridge(scene=None, force_creation=False):
         scene.cider.update_pipeline(bpy.context)
     return _BRIDGE
 
-# TODO which viewlayers are enabled
+# TODO support viewlayers
 # TODO expose pipeline setting
+# TODO setup compositor
 
 class CiderPipeline(bpy.types.PropertyGroup):
     def update_pipeline(self, context):
