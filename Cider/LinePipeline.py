@@ -109,7 +109,6 @@ class LinePipeline(Pipeline):
         for material in scene.batches.keys():
             material.shader = self.copy_default_shader()
             for shader in material.shader.values():
-                # TODO clean up
                 if 'IN_LINE_COLOR' in shader.uniforms.keys():
                     shader.uniforms['IN_LINE_COLOR'].set_value(material.parameters['Line.Color'])
                 if 'IN_LINE_WIDTH_SCALE' in shader.uniforms.keys():

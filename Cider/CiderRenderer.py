@@ -82,6 +82,16 @@ class CiderRenderer:
         if request_scene_update == False:
             return scene
         
+
+        def get_line_style_proxy(line_style):
+            name = line_style.name_full
+            key = ('material',name)
+            if key not in scene.proxys.keys():
+                parameters = line_style.cider_parameters.get_parameters(overrides, scene.proxys)
+                from Bridge.Proxys import MaterialProxy
+                scene.proxys[key]  = MaterialProxy('', {}, parameters)
+            return scene.proxys[key]
+
         meshes = {}
 
         #Objects
@@ -121,48 +131,20 @@ class CiderRenderer:
 
                 tags = set(collection.name for collection in obj.original.users_collection)
 
-                default_linestyle = context.scene.cider.default_linestyle
-                # default_material = context.scene.cider.default_material
+                scene_line_style = context.scene.cider.default_line_style
+                default_line_style = get_line_style_proxy(scene_line_style)
 
                 if len(obj.material_slots) > 0:
                     for i, slot in enumerate(obj.material_slots):
-                        if slot.material:
-                            material_name = slot.material.name_full
-                            material_key = ('material',material_name)
-                            if material_key not in scene.proxys.keys():
-                                # shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
-                                linestyle = default_linestyle
-                                if slot.material.cider.line_style:
-                                    linestyle = slot.material.cider.line_style
-                                linestyle_parameters = linestyle.cider_parameters.get_parameters(overrides, scene.proxys)
-                                from Bridge.Proxys import MaterialProxy
-                                scene.proxys[material_key]  = MaterialProxy('', {}, linestyle_parameters)
-                            material = scene.proxys[material_key]
-                            result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
-                            scene.objects.append(result)
-
-                # TODO fix material being None
-                # if len(obj.material_slots) > 0:
-                #     for i, slot in enumerate(obj.material_slots):
-                #         material = default_material
-                #         if slot.material:
-                #             material_name = slot.material.name_full
-                #             material_key = ('material',material_name)
-                #             if material_key not in scene.proxys.keys():
-                #                 # shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
-                #                 linestyle = default_linestyle
-                #                 if slot.material.cider.line_style:
-                #                     linestyle = slot.material.cider.line_style
-                #                 linestyle_parameters = linestyle.cider_parameters.get_parameters(overrides, scene.proxys)
-                #                 from Bridge.Proxys import MaterialProxy
-                #                 scene.proxys[material_key]  = MaterialProxy('', {}, linestyle_parameters)
-                #             material = scene.proxys[material_key]
-                #         result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
-                #         scene.objects.append(result)
-                # else:
-                #     material = default_material
-                # result = Scene.Object(matrix, mesh[0], material, obj_parameters, mirror_scale, tags)
-                # scene.objects.append(result)
+                        line_style = default_line_style
+                        if slot.material and slot.material.cider.line_style:
+                            line_style = get_line_style_proxy(slot.material.cider.line_style)
+                        result = Scene.Object(matrix, mesh[i], line_style, obj_parameters, mirror_scale, tags)
+                        scene.objects.append(result)
+                else:
+                    line_style = default_line_style
+                result = Scene.Object(matrix, mesh[0], line_style, obj_parameters, mirror_scale, tags)
+                scene.objects.append(result)
 
         is_f12 = not viewport
 

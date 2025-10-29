@@ -20,6 +20,7 @@ def get_bridge(scene=None, force_creation=False):
     return _BRIDGE
 
 # TODO which viewlayers are enabled
+# TODO expose pipeline setting
 
 class CiderPipeline(bpy.types.PropertyGroup):
     def update_pipeline(self, context):
@@ -40,13 +41,8 @@ class CiderPipeline(bpy.types.PropertyGroup):
         _BRIDGE = bridge
         _PIPELINE_PARAMETERS = params
 
-        if self.default_linestyle is None:
-            self.default_linestyle = bpy.data.linestyles[0]
-
-        # if self.default_material is None:
-        #     if "Cider Material" not in bpy.data.materials:
-        #         bpy.data.materials.new("Cider Material")
-        #     self.default_material = bpy.data.materials["Cider Material"]
+        if self.default_line_style is None:
+            self.default_line_style = bpy.data.linestyles[0] # TODO is this bad?
         
         CiderMeshes.reset_meshes()
         CiderTextures.reset_textures()
@@ -58,8 +54,7 @@ class CiderPipeline(bpy.types.PropertyGroup):
     pipeline: bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
     viewport_bit_depth: bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline)
     overrides: bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
-    default_linestyle: bpy.props.PointerProperty(name="Default LineStyle", type=bpy.types.FreestyleLineStyle)
-    # default_material: bpy.props.PointerProperty(name="Default Material", type=bpy.types.Material)
+    default_line_style: bpy.props.PointerProperty(name="Default LineStyle", type=bpy.types.FreestyleLineStyle)
 
     # View Panel
     display_viewport: bpy.props.BoolProperty(name='Viewport Preview', default=True)
@@ -70,11 +65,13 @@ class CiderPipeline(bpy.types.PropertyGroup):
 
     def draw_ui(self, layout):
         layout.enabled = self.enabled
+        layout.prop(self, "display_viewport", toggle = 1)
         layout.use_property_split = True
         layout.use_property_decorate = False
         layout.prop(self, 'viewport_bit_depth')
-        # layout.prop(self, 'default_material')
-        layout.prop(self, 'default_linestyle')
+        layout.prop(self, 'default_line_style')
+        if self.default_line_style:
+            self.default_line_style.cider_parameters.draw_ui(layout)
 
 
 class OT_CiderReloadPipeline(bpy.types.Operator):
