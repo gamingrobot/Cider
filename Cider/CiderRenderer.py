@@ -2,8 +2,8 @@ import ctypes, time, platform
 import xxhash
 import bpy
 from Malt import Scene
-from Malt.GL import GL
 from . import CiderPipeline, CiderMeshes
+from . CiderUtils import is_cider_active
 import gpu
 
 CAPTURE = False
@@ -51,9 +51,6 @@ class CiderRenderer:
 
         scene.parameters = depsgraph.scene_eval.cider_parameters.get_parameters(overrides, scene.proxys)
 
-        # override_material = scene.parameters['Material.Override']
-        # default_material = scene.parameters['Material.Default']
-
         scene.frame = depsgraph.scene_eval.frame_current
         r = depsgraph.scene_eval.render
         fps = r.fps / r.fps_base
@@ -99,7 +96,7 @@ class CiderRenderer:
                     parameters = obj.original.data.cider_parameters.get_parameters(overrides, scene.proxys)
                     cider_mesh = None
                     
-                    if depsgraph.mode == 'VIEWPORT':
+                    if viewport:
                         cider_mesh = CiderMeshes.get_mesh(obj)
                     else: #always load the mesh for final renders
                         cider_mesh = CiderMeshes.load_mesh(obj, name)
@@ -123,21 +120,28 @@ class CiderRenderer:
                 obj_parameters['ID'] = id
 
                 tags = set(collection.name for collection in obj.original.users_collection)
-                
+
+                default_linestyle = context.scene.cider.default_linestyle
+                # default_material = context.scene.cider.default_material
+
                 if len(obj.material_slots) > 0:
                     for i, slot in enumerate(obj.material_slots):
                         if slot.material:
                             material_name = slot.material.name_full
                             material_key = ('material',material_name)
                             if material_key not in scene.proxys.keys():
-                                material_parameters = slot.material.cider_parameters.get_parameters(overrides, scene.proxys)
+                                # shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
+                                linestyle = default_linestyle
+                                if slot.material.cider.line_style:
+                                    linestyle = slot.material.cider.line_style
+                                linestyle_parameters = linestyle.cider_parameters.get_parameters(overrides, scene.proxys)
                                 from Bridge.Proxys import MaterialProxy
-                                scene.proxys[material_key]  = MaterialProxy('', {}, material_parameters)
+                                scene.proxys[material_key]  = MaterialProxy('', {}, linestyle_parameters)
                             material = scene.proxys[material_key]
                             result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
                             scene.objects.append(result)
 
-                # TODO fix material not existing
+                # TODO fix material being None
                 # if len(obj.material_slots) > 0:
                 #     for i, slot in enumerate(obj.material_slots):
                 #         material = default_material
@@ -145,10 +149,13 @@ class CiderRenderer:
                 #             material_name = slot.material.name_full
                 #             material_key = ('material',material_name)
                 #             if material_key not in scene.proxys.keys():
-                #                 shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
-                #                 material_parameters = slot.material.cider_parameters.get_parameters(overrides, scene.proxys)
+                #                 # shader_parameters = slot.material.cider.parameters.get_parameters(overrides, scene.proxys)
+                #                 linestyle = default_linestyle
+                #                 if slot.material.cider.line_style:
+                #                     linestyle = slot.material.cider.line_style
+                #                 linestyle_parameters = linestyle.cider_parameters.get_parameters(overrides, scene.proxys)
                 #                 from Bridge.Proxys import MaterialProxy
-                #                 scene.proxys[material_key]  = MaterialProxy('', shader_parameters, material_parameters)
+                #                 scene.proxys[material_key]  = MaterialProxy('', {}, linestyle_parameters)
                 #             material = scene.proxys[material_key]
                 #         result = Scene.Object(matrix, mesh[i], material, obj_parameters, mirror_scale, tags)
                 #         scene.objects.append(result)
@@ -437,7 +444,7 @@ _RENDERER = None
 
 @bpy.app.handlers.persistent
 def on_pre_render(scene: bpy.types.Scene):
-    if bpy.context.scene.cider.enabled:
+    if is_cider_active():
         global _RENDERER
         if _RENDERER is None:
             _RENDERER = CiderRenderer()
@@ -451,7 +458,7 @@ def on_pre_render(scene: bpy.types.Scene):
 
 @bpy.app.handlers.persistent
 def depsgraph_update(scene, depsgraph):
-    if bpy.context.scene.cider.enabled:
+    if is_cider_active():
         global _RENDERER
         if _RENDERER is None:
             return
@@ -462,7 +469,7 @@ def depsgraph_update(scene, depsgraph):
             raise
 
 def viewport_draw():
-    if bpy.context.scene.cider.enabled and bpy.context.scene.cider.display_viewport and bpy.context.space_data.shading.type == 'RENDERED':
+    if is_cider_active() and bpy.context.scene.cider.display_viewport and bpy.context.space_data.shading.type == 'RENDERED':
         global _RENDERER
         if _RENDERER is None:
             _RENDERER = CiderRenderer()

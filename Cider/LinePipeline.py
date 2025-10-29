@@ -5,15 +5,6 @@ from Malt.Scene import TextureShaderResource
 from Malt.Pipeline import *
 from Malt.Render import Sampling
 
-class ParameterShaderResource():
-    def __init__(self, name, parameter):
-        self.name = name
-        self.parameter = parameter
-    
-    def shader_callback(self, shader):
-        if self.name in shader.uniforms.keys():
-            shader.uniforms[self.name] = self.parameter
-
 class LinePipeline(Pipeline):
 
     DEFAULT_SHADER = None
@@ -62,7 +53,8 @@ class LinePipeline(Pipeline):
             The width (and height) of the sampling grid. 
             Larger values will result in smoother/blurrier images while lower values will result in sharper/more aliased ones. 
             Keep it withing the 1-2 range for best results.""")
-                
+        
+        # Cider maps parameters.material to FreestyleLineStyle but will show up in the material panel
         self.parameters.material['Line.Color'] = Parameter((0.0,0.0,0.0,1.0), Type.FLOAT, size=4, doc="Width Units")
         self.parameters.material['Line.Width Scale'] = Parameter(2.0, Type.FLOAT, doc="Width Scale")
         self.parameters.material['Line.Width Units'] = EnumParameter(['Pixel', 'Screen', 'World'], 'Pixel', Type.ENUM, doc="Width Units")

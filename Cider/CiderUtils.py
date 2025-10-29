@@ -35,6 +35,9 @@ def cider_path_getter(property_name):
         return self.get(property_name,'').replace('\\','/')
     return getter
 
+def is_cider_active():
+    return bpy.context.scene.cider.enabled and bpy.context.scene.render.engine != 'MALT'
+
 # Operator buttons are generated every time the UI is redrawn.
 # The UI is redrawn for every frame the cursor hovers over it
 # The operator button called is not the last one created (???)
@@ -71,23 +74,6 @@ class OT_CiderCallback(bpy.types.Operator):
     def execute(self, context):
         self.callback.call()
         return {'FINISHED'}
-
-class COMMON_UL_UI_List(bpy.types.UIList):
-    
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
-        item.draw(context, layout, data)
-
-def cider_template_list(layout, owner, list_property, index_property, add_callback = None, remove_callback = None):
-    row = layout.row()
-    row.template_list('COMMON_UL_UI_List', '', owner, list_property, owner, index_property)
-    col = row.column()
-    list = getattr(owner, list_property)
-    index = getattr(owner, index_property)
-    col.operator('wm.cider_callback', text='', icon='ADD').callback.set(
-        add_callback if add_callback else list.add, 'Add')
-    col.operator('wm.cider_callback', text='', icon='REMOVE').callback.set(
-        remove_callback if remove_callback else lambda: list.remove(index), 'Remove')
-
 
 import json
 
@@ -130,7 +116,6 @@ classes=[
     OT_CiderPrintError,
     CiderCallback,
     OT_CiderCallback,
-    COMMON_UL_UI_List,
 ]
 
 def register():

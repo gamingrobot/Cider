@@ -1,14 +1,11 @@
 import os, time
 import bpy
-from . import CiderMeshes, CiderMaterial
-from Cider.CiderUtils import cider_path_getter, cider_path_setter
+from . import CiderMeshes, CiderTextures
+from Cider.CiderUtils import cider_path_getter, cider_path_setter, is_cider_active
 
 _BRIDGE = None
 _PIPELINE_PARAMETERS = None
 _TIMESTAMP = time.time()
-
-def is_cider_active():
-    return bpy.context.scene.cider.enabled
 
 def get_bridge(scene=None, force_creation=False):
     global _BRIDGE
@@ -22,23 +19,7 @@ def get_bridge(scene=None, force_creation=False):
         scene.cider.update_pipeline(bpy.context)
     return _BRIDGE
 
-# def sync_pipeline_settings(default_world=None):
-#     for scene in bpy.data.scenes:
-#         if scene.cider.enabled and scene.world is None:
-#             scene.world = bpy.data.worlds.new(f'{scene.name} World')
-#             setup_parameters([scene.world])
-#     if default_world is None:
-#         default_world = bpy.data.worlds[0]
-#     for world in bpy.data.worlds:
-#         if world.cider.pipeline != default_world.cider.pipeline:
-#             world.cider.pipeline = default_world.cider.pipeline
-#         if world.cider.viewport_bit_depth != default_world.cider.viewport_bit_depth:
-#             world.cider.viewport_bit_depth = default_world.cider.viewport_bit_depth
-
-# TODO COMPAT_ENGINES
 # TODO which viewlayers are enabled
-
-_ON_PIPELINE_SETTINGS_UPDATE = False
 
 class CiderPipeline(bpy.types.PropertyGroup):
     def update_pipeline(self, context):
@@ -47,7 +28,7 @@ class CiderPipeline(bpy.types.PropertyGroup):
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         pipeline = os.path.join(current_dir,'LinePipeline.py')
-        
+
         path = bpy.path.abspath(pipeline, library=self.id_data.library)
         import Bridge
         bridge = Bridge.Client_API.Bridge(path, int(self.viewport_bit_depth), True, None, [], None)
@@ -58,38 +39,42 @@ class CiderPipeline(bpy.types.PropertyGroup):
         global _BRIDGE, _PIPELINE_PARAMETERS
         _BRIDGE = bridge
         _PIPELINE_PARAMETERS = params
+
+        if self.default_linestyle is None:
+            self.default_linestyle = bpy.data.linestyles[0]
+
+        # if self.default_material is None:
+        #     if "Cider Material" not in bpy.data.materials:
+        #         bpy.data.materials.new("Cider Material")
+        #     self.default_material = bpy.data.materials["Cider Material"]
         
-        #CiderMaterial.reset_materials()
         CiderMeshes.reset_meshes()
+        CiderTextures.reset_textures()
 
         #TODO: This can fail depending on the current context, ID classes might not be writeable
         setup_all_ids()
 
-    def update_pipeline_settings(self, context):
-        global _ON_PIPELINE_SETTINGS_UPDATE
-        if _ON_PIPELINE_SETTINGS_UPDATE:
-            return
-        _ON_PIPELINE_SETTINGS_UPDATE = True
-
-        #sync_pipeline_settings(self.id_data)
-        
-        _ON_PIPELINE_SETTINGS_UPDATE = False
-        
-        self.update_pipeline(context)
-
     enabled: bpy.props.BoolProperty(name='Enable Cider', default=False)
-    display_viewport: bpy.props.BoolProperty(name='Viewport Display', default=True)
-    pipeline : bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline_settings, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
-    viewport_bit_depth : bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline_settings)
-    overrides : bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
+    pipeline: bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
+    viewport_bit_depth: bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline)
+    overrides: bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
+    default_linestyle: bpy.props.PointerProperty(name="Default LineStyle", type=bpy.types.FreestyleLineStyle)
+    # default_material: bpy.props.PointerProperty(name="Default Material", type=bpy.types.Material)
+
+    # View Panel
+    display_viewport: bpy.props.BoolProperty(name='Viewport Preview', default=True)
+    display_stats: bpy.props.BoolProperty(name='Display Stats', default=False)
 
     def draw_header(self, layout):
         layout.prop(self, 'enabled', text="")
 
     def draw_ui(self, layout):
+        layout.enabled = self.enabled
         layout.use_property_split = True
         layout.use_property_decorate = False
         layout.prop(self, 'viewport_bit_depth')
+        # layout.prop(self, 'default_material')
+        layout.prop(self, 'default_linestyle')
 
 
 class OT_CiderReloadPipeline(bpy.types.Operator):
@@ -98,7 +83,7 @@ class OT_CiderReloadPipeline(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.cider.enabled
+        return is_cider_active()
 
     def execute(self, context):
         import Bridge
@@ -127,12 +112,19 @@ class VIEW3D_PT_Cider(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.cider.enabled and context.space_data.shading.type == 'RENDERED'
+        return is_cider_active() and context.space_data.shading.type == 'RENDERED'
 
     def draw(self, context):
-        stats = CiderPipeline.get_bridge().get_stats()
-        for line in stats.splitlines():
-            self.layout.label(text=line)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.prop(context.scene.cider, "display_viewport", toggle = 1)
+        row = layout.row(align=True)
+        row.prop(context.scene.cider, "display_stats", toggle = 1)
+        if(context.scene.cider.display_stats):
+            row = layout.column()
+            stats = get_bridge().get_stats()
+            for line in stats.splitlines():
+                row.label(text=line)
 
 classes = (
     CiderPipeline,
@@ -146,11 +138,12 @@ def setup_all_ids():
     setup_parameters(bpy.data.worlds)
     setup_parameters(bpy.data.cameras)
     setup_parameters(bpy.data.objects)
-    setup_parameters(bpy.data.materials)
+    # setup_parameters(bpy.data.materials)
     setup_parameters(bpy.data.meshes)
     setup_parameters(bpy.data.curves)
     setup_parameters(bpy.data.metaballs)
-    setup_parameters(bpy.data.lights)
+    # setup_parameters(bpy.data.lights)
+    setup_parameters(bpy.data.linestyles)
 
 def setup_parameters(ids):
     global _PIPELINE_PARAMETERS
@@ -161,11 +154,13 @@ def setup_parameters(ids):
         bpy.types.World : pipeline_parameters.world,
         bpy.types.Camera : pipeline_parameters.camera,
         bpy.types.Object : pipeline_parameters.object,
-        bpy.types.Material : pipeline_parameters.material,
+        # bpy.types.Material : pipeline_parameters.material,
         bpy.types.Mesh : pipeline_parameters.mesh,
         bpy.types.Curve : pipeline_parameters.mesh,
         bpy.types.MetaBall : pipeline_parameters.mesh,
-        bpy.types.Light : pipeline_parameters.light,
+        # bpy.types.Light : pipeline_parameters.light,
+        #Map material to FreestyleLineStyle since we are piggy backing on that TODO maybe add linestyle to Malt's PipelineParameters
+        bpy.types.FreestyleLineStyle : pipeline_parameters.material,
     }
 
     for bid in ids:
@@ -187,8 +182,6 @@ def depsgraph_update(scene, depsgraph):
             _BRIDGE = None
             return
         
-        #sync_pipeline_settings()
-
         if _BRIDGE is None:
             scene.cider.update_pipeline(bpy.context)
             return
@@ -199,11 +192,12 @@ def depsgraph_update(scene, depsgraph):
             bpy.types.World : bpy.data.worlds,
             bpy.types.Camera : bpy.data.cameras,
             bpy.types.Object : bpy.data.objects,
-            bpy.types.Material : bpy.data.materials,
+            # bpy.types.Material : bpy.data.materials,
             bpy.types.Mesh : bpy.data.meshes,
             bpy.types.Curve : bpy.data.curves,
             bpy.types.MetaBall : bpy.data.metaballs,
-            bpy.types.Light : bpy.data.lights,
+            # bpy.types.Light : bpy.data.lights,
+            bpy.types.FreestyleLineStyle : bpy.data.linestyles
         }
         for update in depsgraph.updates:
             # Try to avoid as much re-setups as possible. 
