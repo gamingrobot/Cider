@@ -6,7 +6,6 @@ class CiderMaterial(bpy.types.PropertyGroup):
 
     def linestyle_update(self, context):
         self.id_data.update_tag()
-        self.line_style.update_tag()
 
     line_style: bpy.props.PointerProperty(name="LineStyle", type=bpy.types.FreestyleLineStyle, update=linestyle_update)
 
@@ -14,18 +13,20 @@ class CiderMaterial(bpy.types.PropertyGroup):
         layout.active = self.id_data.library is None #only local data can be edited
         row = layout.row()
         row.active = self.line_style is None
-
-        def style_add_or_duplicate():
-            # TODO copy cider_properties
-            self.line_style = bpy.data.linestyles.new(f'{self.id_data.name} LineStyle')
-
         row = layout.row(align=True)
-        row.template_ID(self, "line_style")
+        row.template_ID(self, "line_style", new="wm.cider_new_linestyle")
         if self.line_style:
-            row.operator('wm.cider_callback', text='', icon='DUPLICATE').callback.set(style_add_or_duplicate, 'Duplicate')
             self.line_style.cider_parameters.draw_ui(layout)
-        else:
-            row.operator('wm.cider_callback', text='New', icon='ADD').callback.set(style_add_or_duplicate, 'New')
+
+class OT_CiderNewLineStyle(bpy.types.Operator):
+    bl_idname = "wm.cider_new_linestyle"
+    bl_label = "Cider New LineStyle Operator"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        if context.material: # TODO handle copying cider_properties
+            context.material.cider.line_style = bpy.data.linestyles.new(f'{self.id_data.name} LineStyle') 
+        return {'FINISHED'}
 
 class CIDER_PT_MaterialSettings(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
@@ -45,6 +46,7 @@ class CIDER_PT_MaterialSettings(bpy.types.Panel):
 
 classes = (
     CiderMaterial,
+    OT_CiderNewLineStyle,
     CIDER_PT_MaterialSettings,
 )    
 
