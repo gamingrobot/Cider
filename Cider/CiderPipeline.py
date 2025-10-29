@@ -93,7 +93,7 @@ class CIDER_PT_Pipeline(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
 
-    bl_context = "render"
+    bl_context = "scene"
     bl_label = "Cider"
 
     def draw_header(self,context):

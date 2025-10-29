@@ -571,7 +571,7 @@ class CIDER_PT_Base(bpy.types.Panel):
             owner.cider_parameters.draw_ui(self.layout)
 
 class CIDER_PT_Scene(CIDER_PT_Base):
-    bl_context = "render"
+    bl_context = "scene"
     @classmethod
     def get_parameter_type(cls):
         return 'scene'

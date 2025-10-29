@@ -213,10 +213,13 @@ class CiderRenderer:
                 alpha=True,
                 float_buffer=True
             )
-        image.source = "GENERATED"
-        image.use_generated_float = True
+        if image.source != "GENERATED":
+            image.source = "GENERATED"
+        if not image.use_generated_float:
+            image.use_generated_float = True
         image.colorspace_settings.name = "Linear Rec.709"
-        image.alpha_mode = "PREMUL"
+        if image.alpha_mode != "PREMUL":
+            image.alpha_mode = "PREMUL"
         image.generated_color = [0, 0, 0, 0]
         if image.size[0] != self.size_x or image.size[1] != self.size_y:
             image.scale(image.size[0] if self.size_x <= 0 else self.size_x, image.size[1] if self.size_y <= 0 else self.size_y)
