@@ -98,7 +98,7 @@ class CiderRenderer:
         def add_object(obj, matrix, id):
             if obj.type in ('MESH','CURVE','SURFACE','META', 'FONT'):
                 name = CiderMeshes.get_mesh_name(obj)
-                if depsgraph.mode == 'RENDER':
+                if not viewport:
                     name = '___F12___' + name
                 
                 if name not in meshes:
@@ -128,6 +128,10 @@ class CiderRenderer:
 
                 obj_parameters = obj.cider_parameters.get_parameters(overrides, scene.proxys)
                 obj_parameters['ID'] = id
+
+                # Remove objects marked not visible
+                if 'visible' in obj_parameters and not obj_parameters['visible']:
+                    return
 
                 tags = set(collection.name for collection in obj.original.users_collection)
 
@@ -213,6 +217,7 @@ class CiderRenderer:
                 alpha=True,
                 float_buffer=True
             )
+            image.generated_color = [0, 0, 0, 0]
         if image.source != "GENERATED":
             image.source = "GENERATED"
         if not image.use_generated_float:
@@ -220,7 +225,6 @@ class CiderRenderer:
         image.colorspace_settings.name = "Linear Rec.709"
         if image.alpha_mode != "PREMUL":
             image.alpha_mode = "PREMUL"
-        image.generated_color = [0, 0, 0, 0]
         if image.size[0] != self.size_x or image.size[1] != self.size_y:
             image.scale(image.size[0] if self.size_x <= 0 else self.size_x, image.size[1] if self.size_y <= 0 else self.size_y)
 

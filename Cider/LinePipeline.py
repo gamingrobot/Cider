@@ -34,6 +34,9 @@ class LinePipeline(Pipeline):
     def setup_parameters(self):
         self.parameters = PipelineParameters()
         
+        self.parameters.object['visible'] = Parameter(True, Type.BOOL, doc=
+            "Disables object visibility, so object is not rendered.")
+
         self.parameters.mesh['double_sided'] = Parameter(False, Type.BOOL, doc=
             "Disables backface culling, so geometry is rendered from both sides.")
         
@@ -42,29 +45,29 @@ class LinePipeline(Pipeline):
             It's disabled by default since it slows down mesh loading in Blender.  
             When disabled, the *tangents* are calculated on the fly from the *pixel shader*.""")
 
-        self.parameters.scene['Samples.Grid Size'] = Parameter(8, Type.INT, doc="""
+        self.parameters.scene['samples.grid_size'] = Parameter(8, Type.INT, doc="""
             The number of render samples per side in the sampling grid. 
             The total number of samples is the square of this value minus the samples that fall outside the sampling radius.  
             Higher values will provide cleaner renders at the cost of increased render times.""")
         
-        self.parameters.scene['Samples.Grid Size @ Preview'] = Parameter(4, Type.INT)
+        self.parameters.scene['samples.grid_size@Preview'] = Parameter(4, Type.INT)
         
-        self.parameters.scene['Samples.Width'] = Parameter(1.0, Type.FLOAT, doc="""
+        self.parameters.scene['samples.width'] = Parameter(1.0, Type.FLOAT, doc="""
             The width (and height) of the sampling grid. 
             Larger values will result in smoother/blurrier images while lower values will result in sharper/more aliased ones. 
             Keep it withing the 1-2 range for best results.""")
         
         # Cider maps parameters.material to FreestyleLineStyle but will show up in the material panel
-        self.parameters.material['Line.Color'] = Parameter((0.0,0.0,0.0,1.0), Type.FLOAT, size=4, doc="Width Units")
-        self.parameters.material['Line.Width Scale'] = Parameter(2.0, Type.FLOAT, doc="Width Scale")
-        self.parameters.material['Line.Width Units'] = EnumParameter(['Pixel', 'Screen', 'World'], 'Pixel', Type.ENUM, doc="Width Units")
-        self.parameters.material['Line Depth.Width'] = Parameter(1.0, Type.FLOAT, doc="Depth Width")
-        self.parameters.material['Line Depth.Threshold'] = Parameter(0.1, Type.FLOAT, doc="Depth Threshold")
-        self.parameters.material['Line Depth.Threshold Range'] = Parameter(0.0, Type.FLOAT, doc="Depth Threshold Range")
-        self.parameters.material['Line Normal.Width'] = Parameter(1.0, Type.FLOAT, doc="Normal Width")
-        self.parameters.material['Line Normal.Threshold'] = Parameter(0.5, Type.FLOAT, doc="Normal Threshold")
-        self.parameters.material['Line Normal.Threshold Range'] = Parameter(0.0, Type.FLOAT, doc="Normal Threshold Range")
-        self.parameters.material['Line Object.Boundary Width'] = Parameter(1.0, Type.FLOAT, doc="Object Boundary Width")
+        self.parameters.material['line.color'] = Parameter((0.0,0.0,0.0,1.0), Type.FLOAT, size=4, doc="Width Units")
+        self.parameters.material['line.width_scale'] = Parameter(2.0, Type.FLOAT, doc="Width Scale")
+        self.parameters.material['line.width_units'] = EnumParameter(['Pixel', 'Screen', 'World'], 'Pixel', Type.ENUM, doc="Width Units")
+        self.parameters.material['line_depth.width'] = Parameter(1.0, Type.FLOAT, doc="Depth Width")
+        self.parameters.material['line_depth.threshold'] = Parameter(0.1, Type.FLOAT, doc="Depth Threshold")
+        self.parameters.material['line_depth.threshold_range'] = Parameter(0.0, Type.FLOAT, doc="Depth Threshold Range")
+        self.parameters.material['line_normal.width'] = Parameter(1.0, Type.FLOAT, doc="Normal Width")
+        self.parameters.material['line_normal.threshold'] = Parameter(0.5, Type.FLOAT, doc="Normal Threshold")
+        self.parameters.material['line_normal.threshold_range'] = Parameter(0.0, Type.FLOAT, doc="Normal Threshold Range")
+        self.parameters.material['line_object.boundary_width'] = Parameter(1.0, Type.FLOAT, doc="Object Boundary Width")
 
 
     def setup_resources(self):
@@ -99,37 +102,37 @@ class LinePipeline(Pipeline):
         self.fbo_aa = RenderTarget([self.t_aa])
 
     def do_render(self, resolution, scene, is_final_render, is_new_frame):        
-        if self.sampling_grid_size != scene.parameters['Samples.Grid Size']:
-            self.sampling_grid_size = scene.parameters['Samples.Grid Size']
+        if self.sampling_grid_size != scene.parameters['samples.grid_size']:
+            self.sampling_grid_size = scene.parameters['samples.grid_size']
             self.samples = None
 
-        sample_offset = self.get_sample(scene.parameters['Samples.Width'])
+        sample_offset = self.get_sample(scene.parameters['samples.width'])
 
         # Setup material shaders
         for material in scene.batches.keys():
             material.shader = self.copy_default_shader()
             for shader in material.shader.values():
                 if 'IN_LINE_COLOR' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_COLOR'].set_value(material.parameters['Line.Color'])
+                    shader.uniforms['IN_LINE_COLOR'].set_value(material.parameters['line.color'])
                 if 'IN_LINE_WIDTH_SCALE' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_WIDTH_SCALE'].set_value(material.parameters['Line.Width Scale'])
+                    shader.uniforms['IN_LINE_WIDTH_SCALE'].set_value(material.parameters['line.width_scale'])
                 if 'IN_LINE_WIDTH_UNITS' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_WIDTH_UNITS'].set_value(material.parameters['Line.Width Units'])
+                    shader.uniforms['IN_LINE_WIDTH_UNITS'].set_value(material.parameters['line.width_units'])
                     #shader.uniforms['IN_LINE_WIDTH_UNITS'].set_value(0)
                 if 'IN_LINE_DEPTH_WIDTH' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_DEPTH_WIDTH'].set_value(material.parameters['Line Depth.Width'])
+                    shader.uniforms['IN_LINE_DEPTH_WIDTH'].set_value(material.parameters['line_depth.width'])
                 if 'IN_LINE_DEPTH_THRESHOLD' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD'].set_value(material.parameters['Line Depth.Threshold'])
+                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD'].set_value(material.parameters['line_depth.threshold'])
                 if 'IN_LINE_DEPTH_THRESHOLD_RANGE' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD_RANGE'].set_value(material.parameters['Line Depth.Threshold Range'])
+                    shader.uniforms['IN_LINE_DEPTH_THRESHOLD_RANGE'].set_value(material.parameters['line_depth.threshold_range'])
                 if 'IN_LINE_NORMAL_WIDTH' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_NORMAL_WIDTH'].set_value(material.parameters['Line Normal.Width'])
+                    shader.uniforms['IN_LINE_NORMAL_WIDTH'].set_value(material.parameters['line_normal.width'])
                 if 'IN_LINE_NORMAL_THRESHOLD' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD'].set_value(material.parameters['Line Normal.Threshold'])
+                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD'].set_value(material.parameters['line_normal.threshold'])
                 if 'IN_LINE_NORMAL_THRESHOLD_RANGE' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD_RANGE'].set_value(material.parameters['Line Normal.Threshold Range'])
+                    shader.uniforms['IN_LINE_NORMAL_THRESHOLD_RANGE'].set_value(material.parameters['line_normal.threshold_range'])
                 if 'IN_LINE_OBJECT_THRESHOLD_RANGE' in shader.uniforms.keys():
-                    shader.uniforms['IN_LINE_OBJECT_THRESHOLD_RANGE'].set_value(material.parameters['Line Object.Boundary Width'])
+                    shader.uniforms['IN_LINE_OBJECT_THRESHOLD_RANGE'].set_value(material.parameters['line_object.boundary_width'])
         
         self.common_buffer.load(scene, resolution, sample_offset, self.sample_count)
         shader_resources = { 'COMMON_UNIFORMS' : self.common_buffer }
