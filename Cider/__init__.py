@@ -21,6 +21,8 @@ _PY_VERSION = str(sys.version_info[0])+str(sys.version_info[1])
 __CIDER_DEPENDENCIES_PATH = path.join(__CIDER_PATH,'Malt','.Dependencies-{}'.format(_PY_VERSION))
 if __CIDER_DEPENDENCIES_PATH not in sys.path: sys.path.append(__CIDER_DEPENDENCIES_PATH)
 
+from . CiderUtils import is_cider_active
+
 class Preferences(bpy.types.AddonPreferences):
     # this must match the addon name
     bl_idname = __package__
@@ -29,7 +31,14 @@ class Preferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.operator('wm.path_open', text="Open Session Log").filepath=sys.stdout.log_path
+        
+        if is_cider_active():
+            layout.operator('wm.path_open', text="Open Session Log").filepath=sys.stdout.log_path
+        else:
+            row = layout.row()
+            row.enabled = False
+            row.operator('wm.path_open', text="Open Session Log")
+
         layout.prop(self, "render_fps_cap")
 
 class CiderDebugOperator(bpy.types.Operator):
