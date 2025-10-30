@@ -1,6 +1,6 @@
 import os, time
 import bpy
-from . import CiderMeshes, CiderTextures
+from . import CiderMeshes, CiderTextures, CiderMaterial
 from Cider.CiderUtils import cider_path_getter, cider_path_setter, is_cider_active
 
 _BRIDGE = None
@@ -47,6 +47,7 @@ class CiderPipeline(bpy.types.PropertyGroup):
         if self.default_line_style is None:
             self.default_line_style = bpy.data.linestyles[0] # TODO is this bad?
         
+        CiderMaterial.update_params(params.material)
         CiderMeshes.reset_meshes()
         CiderTextures.reset_textures()
 

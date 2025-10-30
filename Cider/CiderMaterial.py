@@ -2,6 +2,8 @@ import bpy
 from . CiderUtils import is_cider_active
 from pprint import pprint
 
+_PARAMS = None
+
 class CiderMaterial(bpy.types.PropertyGroup):    
 
     def line_style_update(self, context):
@@ -21,11 +23,17 @@ class CiderMaterial(bpy.types.PropertyGroup):
 class OT_CiderNewLineStyle(bpy.types.Operator):
     bl_idname = "wm.cider_new_line_style"
     bl_label = "Cider New LineStyle Operator"
-    bl_options = {'INTERNAL'}
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
 
     def execute(self, context):
-        if context.material: # TODO handle copying cider_properties
-            context.material.cider.line_style = bpy.data.linestyles.new(f'{context.material.id_data.name} LineStyle') 
+        if context.material:
+            if context.material.cider.line_style:
+                line_style = bpy.data.linestyles.new(context.material.cider.line_style.name)
+                global _PARAMS
+                line_style.cider_parameters.setup(_PARAMS, replace_parameters=False, copy_from=context.material.cider.line_style.cider_parameters)
+                context.material.cider.line_style = line_style
+            else:
+                context.material.cider.line_style = bpy.data.linestyles.new(f'{context.material.id_data.name} LineStyle') 
         return {'FINISHED'}
 
 class CIDER_PT_MaterialSettings(bpy.types.Panel):
@@ -43,6 +51,10 @@ class CIDER_PT_MaterialSettings(bpy.types.Panel):
         layout = self.layout
         if context.material:
             context.material.cider.draw_ui(layout, context)
+
+def update_params(params):
+    global _PARAMS
+    _PARAMS = params
 
 classes = (
     CiderMaterial,
