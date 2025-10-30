@@ -148,8 +148,8 @@ class CiderRenderer:
                         scene.objects.append(result)
                 else:
                     line_style = default_line_style
-                result = Scene.Object(matrix, mesh[0], line_style, obj_parameters, mirror_scale, tags)
-                scene.objects.append(result)
+                    result = Scene.Object(matrix, mesh[0], line_style, obj_parameters, mirror_scale, tags)
+                    scene.objects.append(result)
 
         is_f12 = not viewport
 
