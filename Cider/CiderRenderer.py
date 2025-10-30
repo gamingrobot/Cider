@@ -418,6 +418,16 @@ _IS_RENDERING = False
 
 
 @bpy.app.handlers.persistent
+def on_frame_change_pre(scene):
+    if is_cider_active():
+        global _RENDERER
+        try:
+            if _RENDERER:
+                _RENDERER.view_update()
+        except:
+            raise
+
+@bpy.app.handlers.persistent
 def on_frame_change_post(scene, depsgraph):
     if is_cider_active():
         global _RENDERER
@@ -426,7 +436,6 @@ def on_frame_change_post(scene, depsgraph):
         
         try:
             if _IS_RENDERING: # Only render if pre_render has been called
-                _RENDERER.view_update()
                 _RENDERER.render(bpy.context, depsgraph)
         except:
             raise
@@ -482,6 +491,7 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.app.handlers.depsgraph_update_post.append(depsgraph_update)
+    bpy.app.handlers.frame_change_pre.append(on_frame_change_pre)
     bpy.app.handlers.frame_change_post.append(on_frame_change_post)
     bpy.app.handlers.render_pre.append(on_pre_render)
     bpy.app.handlers.render_cancel.append(on_render_cancel)
@@ -495,6 +505,7 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update)
+    bpy.app.handlers.frame_change_pre.remove(on_frame_change_pre)
     bpy.app.handlers.frame_change_post.remove(on_frame_change_post)
     bpy.app.handlers.render_pre.remove(on_pre_render)
     bpy.app.handlers.render_cancel.remove(on_render_cancel)
