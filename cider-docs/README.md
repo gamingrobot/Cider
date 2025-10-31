@@ -1,6 +1,6 @@
 ## Install
  
-- Go to [the latest Release page](https://github.com/gamingrobot/Cider/releases/tag/Release-latest).
+- Go to [the latest Release page](https://github.com/gamingrobot/Cider/releases/tag/cider-latest).
 - Download the *Cider* version that matches your OS.
 - Open Blender. Go to *Preferences > Addons*, click on the *Install...* button and select *Cider.zip* from your downloads. *(It will take a few seconds)*
 - Tick the box in the *Cider* panel to enable it.

@@ -1,0 +1,135 @@
+name: CiderRelease
+
+on:
+  push:
+    branches:        
+      - 'cider' 
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - uses: nelonoel/branch-name@v1.0.1
+
+    - name: Rollback Release
+      uses: author/action-rollback@stable
+      continue-on-error: true
+      with:
+        tag: ${{ env.BRANCH_NAME }}-latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: ${{ github.ref_type == 'branch' }}
+
+    - uses: ncipollo/release-action@v1
+      id: create_release
+      if: ${{ github.ref_type == 'branch' }}
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        allowUpdates: true
+        tag: ${{ env.BRANCH_NAME }}-latest
+        commit: ${{ github.sha }}
+        body: |
+          [**Cider-Windows.zip**](https://github.com/${{github.repository}}/releases/download/${{env.BRANCH_NAME}}-latest/Cider-Windows.zip)
+          [**Cider-Linux.zip**](https://github.com/${{github.repository}}/releases/download/${{env.BRANCH_NAME}}-latest/Cider-Linux.zip) 
+    
+    # - name: Rollback Tagged Release
+    #   uses: author/action-rollback@stable
+    #   continue-on-error: true
+    #   with:
+    #     tag: ${{ github.action_ref }}
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   if: ${{ github.ref_type == 'tag' }}
+    
+    # - uses: ncipollo/release-action@v1
+    #   id: create_tagged_release
+    #   if: ${{ github.ref_type == 'tag' }}
+    #   with:
+    #     token: ${{ secrets.GITHUB_TOKEN }}
+    #     commit: ${{ github.sha }}
+    #     allowUpdates: true
+    #     body: |
+    #       [**Cider-Windows.zip**](https://github.com/${{github.repository}}/releases/download/${{github.ref_name}}/Cider-Windows.zip)
+    #       [**Cider-Linux.zip**](https://github.com/${{github.repository}}/releases/download/${{github.ref_name}}/Cider-Linux.zip)
+          
+            
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}  
+      release_id: ${{ steps.create_release.outputs.id }}
+      tagged_upload_url: ${{ steps.create_tagged_release.outputs.upload_url }}  
+      tagged_release_id: ${{ steps.create_tagged_release.outputs.id }}
+  
+  package-blender:
+    needs: [release]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+        
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    
+    - name: setup_blender_addon.py
+      run: python setup_blender_addon.py --copy-modules
+      working-directory: ${{ github.workspace }}/scripts
+    
+    - name: Zip Addon
+      shell: python
+      run: |
+        import shutil
+        shutil.make_archive('Cider', 'zip', '.', 'Cider')
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Cider-${{ runner.os }}
+        path: ${{ github.workspace }}/Cider.zip
+    
+    - name: Remove Old Files
+      uses: flcdrg/remove-release-asset-action@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        release_id: ${{ needs.release.outputs.release_id }}
+        asset_name: Cider-${{ runner.os }}.zip
+      continue-on-error: true
+      if: ${{ github.ref_type == 'branch' }}
+    
+    - name: Release Addon
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release.outputs.upload_url }}
+        asset_path: ${{ github.workspace }}/Cider.zip
+        asset_name: Cider-${{ runner.os }}.zip
+        asset_content_type: application/zip
+      if: ${{ github.ref_type == 'branch' }}
+    
+    # - name: Remove Old Tagged Files
+    #   uses: flcdrg/remove-release-asset-action@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     release_id: ${{ needs.release.outputs.tagged_release_id }}
+    #     asset_name: Cider-${{ runner.os }}.zip
+    #   continue-on-error: true
+    #   if: ${{ github.ref_type == 'tag' }}
+
+    # - name: Release Tagged Addon
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ needs.release.outputs.tagged_upload_url }}
+    #     asset_path: ${{ github.workspace }}/Cider.zip
+    #     asset_name: Cider-${{ runner.os }}.zip
+    #     asset_content_type: application/zip
+    #   if: ${{ github.ref_type == 'tag' }}
