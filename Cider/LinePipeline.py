@@ -32,6 +32,10 @@ class LinePipeline(Pipeline):
         }
     
     def setup_parameters(self):
+        def set_min_max(param, min, max):
+            param.min = min
+            param.max = max
+
         self.parameters = PipelineParameters()
         
         self.parameters.object['visible'] = Parameter(True, Type.BOOL, doc=
@@ -60,15 +64,22 @@ class LinePipeline(Pipeline):
         # Cider maps parameters.material to FreestyleLineStyle but will show up in the material panel
         self.parameters.material['line.color'] = Parameter((0.0,0.0,0.0,1.0), Type.FLOAT, size=4, doc="Width Units")
         self.parameters.material['line.width_scale'] = Parameter(2.0, Type.FLOAT, doc="Width Scale")
+        set_min_max(self.parameters.material['line.width_scale'], 0.0, 10.0)
         self.parameters.material['line.width_units'] = EnumParameter(['Pixel', 'Screen', 'World'], 'Pixel', Type.ENUM, doc="Width Units")
         self.parameters.material['line_depth.width'] = Parameter(1.0, Type.FLOAT, doc="Depth Width")
+        set_min_max(self.parameters.material['line_depth.width'], 0.0, 1.0)
         self.parameters.material['line_depth.threshold'] = Parameter(0.1, Type.FLOAT, doc="Depth Threshold")
+        set_min_max(self.parameters.material['line_depth.threshold'], 0.0, 1.0)
         self.parameters.material['line_depth.threshold_range'] = Parameter(0.0, Type.FLOAT, doc="Depth Threshold Range")
+        set_min_max(self.parameters.material['line_depth.threshold_range'], 0.0, 1.0)
         self.parameters.material['line_normal.width'] = Parameter(1.0, Type.FLOAT, doc="Normal Width")
+        set_min_max(self.parameters.material['line_normal.width'], 0.0, 1.0)
         self.parameters.material['line_normal.threshold'] = Parameter(0.5, Type.FLOAT, doc="Normal Threshold")
+        set_min_max(self.parameters.material['line_normal.threshold'], 0.0, 1.0)
         self.parameters.material['line_normal.threshold_range'] = Parameter(0.0, Type.FLOAT, doc="Normal Threshold Range")
+        set_min_max(self.parameters.material['line_normal.threshold_range'], 0.0, 1.0)
         self.parameters.material['line_object.boundary_width'] = Parameter(1.0, Type.FLOAT, doc="Object Boundary Width")
-
+        set_min_max(self.parameters.material['line_object.boundary_width'], 0.0, 1.0)
 
     def setup_resources(self):
         super().setup_resources()
