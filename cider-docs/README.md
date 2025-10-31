@@ -13,6 +13,13 @@
 
 ## Usage
 
+- Enable Cider in the Scene settings
+- Render scene (Cider will generate a packed image on render)
+- Setup compositor nodes:
+![compositor setup](images/compositor_setup.png)
+
+## Settings
+
 ### Scene
 ![scene settings](images/scene_settings.png)
 - **Viewport Preview** *: ( Bool ) = True*  
