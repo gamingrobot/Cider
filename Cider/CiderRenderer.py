@@ -497,7 +497,7 @@ def register():
     bpy.app.handlers.render_cancel.append(on_render_cancel)
     bpy.app.handlers.render_complete.append(on_render_complete)
     global _VIEWPORT_DRAW_HANDLER
-    _VIEWPORT_DRAW_HANDLER = bpy.types.SpaceView3D.draw_handler_add(viewport_draw, (), 'WINDOW', 'POST_PIXEL')
+    _VIEWPORT_DRAW_HANDLER = bpy.types.SpaceView3D.draw_handler_add(viewport_draw, (), 'WINDOW', 'POST_VIEW')
 
 
 def unregister():
