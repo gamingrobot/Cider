@@ -6,6 +6,14 @@ This is a stop-gap solution until the [NPR Project](https://code.blender.org/202
 
 Cider renders a separate image output to be composited on-top of an EEVEE or Cycles render. It provides a viewport preview overlay and ability to specify a custom Render Pipeline. For more advanced rendering Malt is still recommended. 
 
+[Documentation](cider-docs/README.md)
+
+## Limitations
+
+- Currently only renders the active ViewLayer
+- Compositor nodes need to be setup manually
+- Doesn't work with "Mark Freestyle Edge/Face"
+
 ## Requirements
 
 - OpenGL 4.5
