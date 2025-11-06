@@ -1,6 +1,5 @@
 import bpy
 from . CiderUtils import is_cider_active
-from pprint import pprint
 
 _PARAMS = None
 

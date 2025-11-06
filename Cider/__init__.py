@@ -46,7 +46,7 @@ class CiderDebugOperator(bpy.types.Operator):
     bl_label = "Cider Debug"
 
     def execute(self, context):
-        import pprint
+        #import pprint
         #pprint.pprint(context.scene.cider.enabled)
         return{"FINISHED"}
 

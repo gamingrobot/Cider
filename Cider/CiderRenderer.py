@@ -216,7 +216,6 @@ class CiderRenderer:
             image.generated_color = [0, 0, 0, 0]
             colorspaces = bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties["name"].enum_items
             image.colorspace_settings.name = "Linear" if "Linear" in colorspaces else "Linear Rec.709"
-
             image.source = "GENERATED"
             image.use_generated_float = True
             image.alpha_mode = "PREMUL"
