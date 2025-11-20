@@ -10,7 +10,6 @@ Cider renders a separate image output to be composited on-top of an EEVEE or Cyc
 
 ## Limitations
 
-- Currently only renders the active ViewLayer
 - Compositor nodes need to be setup manually
 - Doesn't work with "Mark Freestyle Edge/Face"
 
