@@ -25,15 +25,11 @@ class OT_CiderPrintError(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 # Always store paths in UNIX format so saved files work across OSs
-def cider_path_setter(property_name):
-    def setter(self, value):
-        self[property_name] = value.replace('\\','/')
-    return setter
+def cider_path_set_transform(self, new_value, curr_value, is_set):
+    return new_value.replace('\\','/')
 
-def cider_path_getter(property_name):
-    def getter(self):
-        return self.get(property_name,'').replace('\\','/')
-    return getter
+def cider_path_get_transform(self, curr_value, is_set):
+    return curr_value.replace('\\','/')
 
 def is_cider_active():
     return bpy.context.scene.cider.enabled and bpy.context.scene.render.engine != 'MALT'

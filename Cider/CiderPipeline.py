@@ -1,7 +1,7 @@
 import os, time
 import bpy
 from . import CiderMeshes, CiderTextures, CiderMaterial
-from Cider.CiderUtils import cider_path_getter, cider_path_setter, is_cider_active
+from Cider.CiderUtils import cider_path_set_transform, cider_path_get_transform, is_cider_active
 
 _BRIDGE = None
 _PIPELINE_PARAMETERS = None
@@ -55,7 +55,7 @@ class CiderPipeline(bpy.types.PropertyGroup):
         setup_all_ids()
 
     enabled: bpy.props.BoolProperty(name='Enable Cider', default=False)
-    pipeline: bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline, set=cider_path_setter('pipeline'), get=cider_path_getter('pipeline'))
+    pipeline: bpy.props.StringProperty(name="Cider Pipeline", subtype='FILE_PATH', update=update_pipeline, set_transform=cider_path_set_transform, get_transform=cider_path_get_transform)
     viewport_bit_depth: bpy.props.EnumProperty(items=[('8', '8', ''),('16', '16', ''),('32', '32', '')], name="Bit Depth (Viewport)", update=update_pipeline)
     overrides: bpy.props.StringProperty(name='Pipeline Overrides', default='Preview,Final Render')
     default_line_style: bpy.props.PointerProperty(name="Default LineStyle", type=bpy.types.FreestyleLineStyle)
