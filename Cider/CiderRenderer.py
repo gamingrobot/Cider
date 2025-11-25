@@ -211,13 +211,10 @@ class CiderRenderer:
                 width=self.size_x,
                 height=self.size_y,
                 alpha=True,
-                float_buffer=True
             )
-            image.generated_color = [0, 0, 0, 0]
             colorspaces = bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties["name"].enum_items
             image.colorspace_settings.name = "Linear" if "Linear" in colorspaces else "Linear Rec.709"
-            image.source = "GENERATED"
-            image.use_generated_float = True
+            image.generated_color = [0, 0, 0, 0]
             image.alpha_mode = "PREMUL"
         
         if image.size[0] != self.size_x or image.size[1] != self.size_y:
@@ -226,7 +223,8 @@ class CiderRenderer:
         pixels = buffers["COLOR"]
         data_size = len(pixels)
         image.pixels = (ctypes.c_float * data_size).from_address(pixels._buffer.data)
-        image.use_fake_user = True
+        image.update()
+        image.pack()
         # TODO delete image after render_complete/render_cancel?
 
         # Delete the scene. Otherwise we get memory leaks.
