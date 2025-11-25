@@ -318,7 +318,7 @@ def main(pipeline_path, viewport_bit_depth, connection_addresses,
     # Don't hide for better OS/Drivers schedule priority
     #glfw.hide_window(window)
     # Minimize instead:
-    glfw.iconify_window(window)
+    #glfw.iconify_window(window)
 
     glfw.swap_interval(0)
 
