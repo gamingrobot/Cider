@@ -27,7 +27,14 @@ class Preferences(bpy.types.AddonPreferences):
     # this must match the addon name
     bl_idname = __package__
     
+    def update_debug_mode(self, context):
+        if is_cider_active():
+            context.scene.cider.update_pipeline(context)
+
     render_fps_cap : bpy.props.IntProperty(name="Max Viewport Render Framerate", default=30)
+
+    debug_mode : bpy.props.BoolProperty(name="Debug Mode", default=False, update=update_debug_mode,
+        description="Developers only. Do not touch !!!")
 
     def draw(self, context):
         layout = self.layout
@@ -40,6 +47,7 @@ class Preferences(bpy.types.AddonPreferences):
             row.operator('wm.path_open', text="Open Session Log")
 
         layout.prop(self, "render_fps_cap")
+        layout.prop(self, "debug_mode")
 
 class CiderDebugOperator(bpy.types.Operator):
     bl_idname = "wm.cider_debug"

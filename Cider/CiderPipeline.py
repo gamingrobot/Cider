@@ -33,9 +33,12 @@ class CiderPipeline(bpy.types.PropertyGroup):
             current_dir = os.path.dirname(os.path.abspath(__file__))
             pipeline = os.path.join(current_dir,'LinePipeline.py')
 
+        preferences = bpy.context.preferences.addons['Cider'].preferences
+        debug_mode = bool(preferences.debug_mode)
+
         path = bpy.path.abspath(pipeline, library=self.id_data.library)
         import Bridge
-        bridge = Bridge.Client_API.Bridge(path, int(self.viewport_bit_depth), True, None, [], None)
+        bridge = Bridge.Client_API.Bridge(path, int(self.viewport_bit_depth), debug_mode, None, [], None)
         from Malt.Utils import LOG
         LOG.info('Blender {} {} {}'.format(bpy.app.version_string, bpy.app.build_branch, bpy.app.build_hash))
         params = bridge.get_parameters()
