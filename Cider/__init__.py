@@ -15,11 +15,11 @@ import bpy
 
 #Add Malt and dependencies to the import path
 __CURRENT_DIR = path.dirname(path.realpath(__file__))
-__MALT_PATH = path.join(__CURRENT_DIR, '.MaltPath')
-if __MALT_PATH not in sys.path: sys.path.append(__MALT_PATH)
+__CIDER_PATH = path.join(__CURRENT_DIR, '.MaltPath')
+if __CIDER_PATH not in sys.path: sys.path.append(__CIDER_PATH)
 _PY_VERSION = str(sys.version_info[0])+str(sys.version_info[1])
-__MALT_DEPENDENCIES_PATH = path.join(__MALT_PATH,'Malt','.Dependencies-{}'.format(_PY_VERSION))
-if __MALT_DEPENDENCIES_PATH not in sys.path: sys.path.append(__MALT_DEPENDENCIES_PATH)
+__CIDER_DEPENDENCIES_PATH = path.join(__CIDER_PATH,'Malt','.Dependencies-{}'.format(_PY_VERSION))
+if __CIDER_DEPENDENCIES_PATH not in sys.path: sys.path.append(__CIDER_DEPENDENCIES_PATH)
 
 from . CiderUtils import is_cider_active
 
