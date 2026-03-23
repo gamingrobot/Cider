@@ -52,6 +52,9 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
+
+    - name: install setuptools
+      run: pip install setuptools
     
     - name: setup_blender_addon.py
       run: python setup_blender_addon.py --copy-modules
